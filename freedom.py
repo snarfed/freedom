@@ -1,9 +1,10 @@
 #!/usr/bin/python
 """Publishes a Facebook, Twitter, or Google+ posts to WordPress via XML-RPC.
 
-http://snarfed.org/social_to_wordpress
+http://freedom.io/
+http://snarfed.org/freedom
 
-Usage: social_to_wordpress.py XMLRPC_URL USERNAME PASSWORD < FILENAME
+Usage: freedom.py XMLRPC_URL USERNAME PASSWORD < FILENAME
 
 Reads one or more Facebook posts from stdin, in Graph API JSON representation,
 and publishes them to a WordPress blog via XML-RPC. Includes attached images,
@@ -80,7 +81,7 @@ def post_to_wordpress(xmlrpc, post):
   content = obj.get('content', '')
   first_phrase = re.search('^[^,.:;?!]+', content)
   location = obj.get('location')
-  image = obj.get('image', '')
+  image = obj.get('image', {}).get('url', {})
 
   # title
   if first_phrase:
@@ -102,26 +103,27 @@ def post_to_wordpress(xmlrpc, post):
     logging.info('Skipping %s' % title)
     return
 
-  # link
-  link = obj.get('link')
-  if link and stype == 'shared_story':
-    content += """
-<table><tr><td>
-  <a class="fb-link" href="%s"><img class="fb-link-thumbnail" src="%s" /></a>
-</td><td>
-  <a class="fb-link" href="%s"><span class="fb-link-name">%s</span></a><br />
-""" % (link, image, link, obj.get('name', link))
-    for elem in ('caption', 'description'):
-      if elem in obj:
-        content += '<span class="fb-link-%s">%s</span><br />' % ((obj[elem],) * 2)
-    content += '</td></tr></table><br />'
+  # attachments
+  for att in obj.get('attachments', []):
+    if att.get('objectType') == 'article':
+      url = att.get('url')
+      content += """
+<p><a class="fb-link" href="%s">
+<img class="fb-link-thumbnail" src="%s" />
+<span class="fb-link-name">%s</span>
+""" % (url, image, att.get('displayName', url))
+      for elem in 'summary', 'content':
+        val = att.get(elem)
+        if val:
+          content += '<span class="fb-link-%s">%s</span>\n' % (elem, val)
+      content += '</p>'
 
   # tags (checkin, people, etc)
-  content += '<p class="fb-tags">'
+  content += '\n<p class="fb-tags">\n'
 
   # location
   if location:
-    content += '<span class="fb-checkin"> at <a href="%s">%s</a></span>' % (
+    content += '<span class="fb-checkin"> at <a href="%s">%s</a></span>\n' % (
       location['url'], location['displayName'])
 
   # tags
@@ -132,7 +134,7 @@ def post_to_wordpress(xmlrpc, post):
                          for t in tags)
     content += '</span>'
 
-  content += '</p>'
+  content += '</p>\n'
 
   # photo
   if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
@@ -153,8 +155,8 @@ def post_to_wordpress(xmlrpc, post):
 
   # "via Facebook"
   content += """<p class="fb-via">
-<a href="http://facebook.com/permalink.php?id=%s&story_fbid=%s">via Facebook</a>
-</p>""" % tuple(obj['id'].split('_'))
+<a href="%s">via Facebook</a>
+</p>""" % obj.get('url')
 
   # post!
   logging.info('Publishing %s', title)
@@ -203,7 +205,7 @@ def main(args):
   logging.getLogger().setLevel(logging.INFO)
   if len(args) != 4:
     print >> sys.stderr, \
-        'Usage: social_to_wordpress.py XMLRPC_URL USERNAME PASSWORD < FILENAME'
+        'Usage: freedom.py XMLRPC_URL USERNAME PASSWORD < FILENAME'
     return 1
 
   logging.info('Reading posts from stdin')
