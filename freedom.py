@@ -103,19 +103,18 @@ def post_to_wordpress(xmlrpc, post):
     logging.info('Skipping %s' % title)
     return
 
-  # attachments
+  # attachments, e.g. links (aka articles)
   for att in obj.get('attachments', []):
     if att.get('objectType') == 'article':
       url = att.get('url')
       content += """
-<p><a class="fb-link" href="%s">
+<p><a class="fb-link" alt="%s" href="%s">
 <img class="fb-link-thumbnail" src="%s" />
 <span class="fb-link-name">%s</span>
-""" % (url, image, att.get('displayName', url))
-      for elem in 'summary', 'content':
-        val = att.get(elem)
-        if val:
-          content += '<span class="fb-link-%s">%s</span>\n' % (elem, val)
+""" % (att.get('content', ''), url, image, att.get('displayName', url))
+      summary = att.get('summary')
+      if summary:
+        content += '<span class="fb-link-summary">%s</span>\n' % summary
       content += '</p>'
 
   # tags (checkin, people, etc)
