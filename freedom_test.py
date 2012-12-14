@@ -131,7 +131,7 @@ New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9H
         'post_title': 'Paul Graham inspired me to put this at the top of my todo list',
         'post_content': """\
 Paul Graham inspired me to put this at the top of my todo list, to force myself to think about it regularly.
-<p><a class="fb-link" alt="" href="http://paulgraham.com/todo.html">
+<p><a class="fb-link" alt="The Top of My Todo List" href="http://paulgraham.com/todo.html">
 <img class="fb-link-thumbnail" src="http://my/image.jpg" />
 <span class="fb-link-name">The Top of My Todo List</span>
 <span class="fb-link-summary">paulgraham.com</span>
@@ -172,13 +172,13 @@ Paul Graham inspired me to put this at the top of my todo list, to force myself 
         'post_title': 'Clothes shopping',
         'post_content': """\
 Clothes shopping. Grudgingly.
-<p><a class="fb-link" alt="We thank you for your enthusiasm for Macys!" href="https://www.facebook.com/MacysSanFranciscoUnionSquareCA">
+<p><a class="fb-link" alt="name: Macys San Francisco Union Square" href="https://www.facebook.com/MacysSanFranciscoUnionSquareCA">
 <img class="fb-link-thumbnail" src="https://macys/picture.jpg" />
-<span class="fb-link-name">https://www.facebook.com/MacysSanFranciscoUnionSquareCA</span>
+<span class="fb-link-name">name: Macys San Francisco Union Square</span>
 <span class="fb-link-summary">Ryan checked in at Macys San Francisco Union Square.</span>
 </p>
 <p class="fb-tags">
-<span class="fb-checkin"> at <a href="http://facebook.com/161569013868015">Macys San Francisco Union Square</a></span>
+<span class="fb-checkin"> at <a href="http://facebook.com/161569013868015">place: Macys San Francisco Union Square</a></span>
 </p>
 <p class="fb-via">
 <a href="http://facebook.com/212038/posts/10100397129690713">via Facebook</a>
@@ -198,12 +198,13 @@ Clothes shopping. Grudgingly.
       'message': 'Clothes shopping. Grudgingly.',
       'picture': 'https://macys/picture.jpg',
       'link': 'https://www.facebook.com/MacysSanFranciscoUnionSquareCA',
+      'name': 'name: Macys San Francisco Union Square',
       'caption': 'Ryan checked in at Macys San Francisco Union Square.',
       'description': 'We thank you for your enthusiasm for Macys!',
       'icon': 'https://www.facebook.com/images/icons/place.png',
       'place': {
         'id': '161569013868015',
-        'name': 'Macys San Francisco Union Square',
+        'name': 'place: Macys San Francisco Union Square',
         'location': {
           'street': '170 OFARRELL ST',
           'city': 'San Francisco',
@@ -224,7 +225,50 @@ Clothes shopping. Grudgingly.
       'updated_time': '2012-10-15T03:59:48+0000'
     })
 
-  def test_mention(self):
+  def test_linkify_content(self):
+    self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
+      self.assert_equals_cmp({
+        'post_type': 'post',
+        'post_status': 'publish',
+        'post_title': 'Oz Noy trio is killing it',
+        'post_content': """\
+Oz Noy trio is killing it.
+<a href="http://oznoy.com/">http://oznoy.com/</a>
+<p><a class="fb-link" alt="The 55 Bar" href="https://www.facebook.com/pages/The-55-Bar/136676259709087">
+<img class="fb-link-thumbnail" src="https://fbcdn-profile-a.akamaihd.net/static-ak/rsrc.php/v2/y5/r/j258ei8TIHu.png" />
+<span class="fb-link-name">The 55 Bar</span>
+<span class="fb-link-summary">Ryan checked in at The 55 Bar.</span>
+</p>
+<p class="fb-tags">
+</p>
+<p class="fb-via">
+<a href="http://facebook.com/212038/posts/10100242451207633">via Facebook</a>
+</p>""",
+        'post_date': datetime.datetime(2012, 4, 26, 4, 29, 56),
+        'comment_status': 'open',
+        'terms_names': {'post_tag': freedom.POST_TAGS},
+        }))
+
+    self.mox.ReplayAll()
+    freedom.post_to_wordpress(self.xmlrpc, {
+        'id': '212038_10100242451207633',
+        'from': {
+          'name': 'Ryan Barrett',
+          'id': '212038'
+          },
+        'message': 'Oz Noy trio is killing it.\nhttp://oznoy.com/',
+        'picture': 'https://fbcdn-profile-a.akamaihd.net/static-ak/rsrc.php/v2/y5/r/j258ei8TIHu.png',
+        'link': 'https://www.facebook.com/pages/The-55-Bar/136676259709087',
+        'name': 'The 55 Bar',
+        'caption': 'Ryan checked in at The 55 Bar.',
+        'icon': 'https://www.facebook.com/images/icons/place.png',
+        'type': 'status',
+        'status_type': 'mobile_status_update',
+        'created_time': '2012-04-26T04:29:56+0000',
+        'updated_time': '2012-04-26T04:29:56+0000'
+        })
+
+  def test_mention_and_with_tags(self):
     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
       self.assert_equals_cmp({
         'post_type': 'post',
@@ -234,7 +278,7 @@ Clothes shopping. Grudgingly.
 discovered in the far back of a dusty cabinet at my parents' house. been sitting there for over five years. evidently the camus 140th anniversary is somewhat special, and damn good.
 
 cc <a class="fb-mention" href="http://facebook.com/profile.php?id=13307262">Daniel Meredith</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=9374038">Warren Ahner</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=201963">Steve Garrity</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=1506309346">Devon LaHar</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=100000224384191">Gina Rossman</a>
-<p><a class="fb-link" alt="" href="https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1">
+<p><a class="fb-link" alt="https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1" href="https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1">
 <img class="fb-link-thumbnail" src="{}" />
 <span class="fb-link-name">https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1</span>
 </p>

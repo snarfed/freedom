@@ -107,11 +107,12 @@ def post_to_wordpress(xmlrpc, post):
   for att in obj.get('attachments', []):
     if att.get('objectType') == 'article':
       url = att.get('url')
+      name = att.get('displayName', url)
       content += """
 <p><a class="fb-link" alt="%s" href="%s">
 <img class="fb-link-thumbnail" src="%s" />
 <span class="fb-link-name">%s</span>
-""" % (att.get('content', ''), url, image, att.get('displayName', url))
+""" % (name, url, image, name)
       summary = att.get('summary')
       if summary:
         content += '<span class="fb-link-summary">%s</span>\n' % summary
