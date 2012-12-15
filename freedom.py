@@ -136,10 +136,10 @@ def object_to_wordpress(xmlrpc, obj):
   # TODO
   # if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
     # orig_image = image[:-6] + '_o.jpg'
-  if obj.get('objectType') == 'photo':
-    logging.info('Downloading %s', orig_image)
-    resp = urllib2.urlopen(orig_image)
-    filename = os.path.basename(urlparse.urlparse(orig_image).path)
+  if obj.get('objectType') == 'photo' and image:
+    logging.info('Downloading %s', image)
+    resp = urllib2.urlopen(image)
+    filename = os.path.basename(urlparse.urlparse(image).path)
     mime_type = resp.info().gettype()
 
     logging.info('Uploading as %s', mime_type)

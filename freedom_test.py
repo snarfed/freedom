@@ -6,6 +6,9 @@ __author__ = ['Ryan Barrett <freedom@ryanb.org>']
 
 import datetime
 import mox
+import StringIO
+import urllib2
+import xmlrpclib
 
 from webutil import testutil
 import freedom
@@ -339,51 +342,69 @@ cc <a class="fb-mention" href="http://facebook.com/profile.php?id=13307262">Dani
         'updated': '2011-12-28T03:36:46+0000',
         'url': 'http://facebook.com/212038/posts/998665783603'})
 
-#   def test_picture(self):
-#     self.xmlrpc.proxy.wp.uploadFile(BLOG_ID, 'my_user', 'my_passwd',
-#                                  'xyz')
-#     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
-#       self.assert_equals_cmp({
-#         'post_type': 'post',
-#         'post_status': 'publish',
-#         'post_title': 'Clothes shopping',
-#         'post_content': """\
-# Clothes shopping. Grudgingly.
-# <p><a class="fb-link" alt="We thank you for your enthusiasm for Macys!" href="https://www.facebook.com/MacysSanFranciscoUnionSquareCA">
-# <img class="fb-link-thumbnail" src="https://macys/picture.jpg" />
-# <span class="fb-link-name">https://www.facebook.com/MacysSanFranciscoUnionSquareCA</span>
-# <span class="fb-link-summary">Ryan checked in at Macys San Francisco Union Square.</span>
-# </p>
-# <p class="fb-tags">
-# <span class="fb-checkin"> at <a href="http://facebook.com/161569013868015">Macys San Francisco Union Square</a></span>
-# </p>
-# <p class="fb-via">
-# <a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a>
-# </p>""",
-#         "post_date": datetime.datetime(2012, 10, 14, 19, 41, 30),
-#         "comment_status": "open",
-#         "terms_names": {"post_tag": freedom.POST_TAGS},
-#         }))
+  def test_picture(self):
+    class Info(object):
+      def gettype(self):
+        return 'my mime type'
+    image_resp = StringIO.StringIO('my data')
+    image_resp.info = lambda: Info()
 
-#     self.mox.ReplayAll()
-#     freedom.object_to_wordpress(self.xmlrpc, {
-#         'attachments': [{
-#             'objectType': 'article',
-#             'url': 'https://www.facebook.com/photo_album',
-#             }],
-#         'author': {
-#           'displayName': 'Ryan Barrett',
-#           'id': 'tag:facebook.com,2012:212038',
-#           'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
-#           'url': 'http://facebook.com/212038',
-#           },
-#         'id': 'tag:facebook.com,2012:212038_10100419011125143',
-#         'image': {'url': 'https://my/photo.jpg'},
-#         'objectType': 'photo',
-#         'published': '2012-11-06T05:50:21+0000',
-#         'updated': '2012-11-07T03:39:11+0000',
-#         'url': 'http://facebook.com/212038/posts/10100419011125143',
-#         })
+    self.mox.StubOutWithMock(urllib2, 'urlopen')
+    urllib2.urlopen('https://its/my_photo.jpg').AndReturn(image_resp)
+
+    self.xmlrpc.proxy.wp.uploadFile(BLOG_ID, 'my_user', 'my_passwd', {
+        'name': 'my_photo.jpg',
+        'type': 'my mime type',
+        'bits': xmlrpclib.Binary('my data'),
+        }).AndReturn({
+        'file': 'returned_filename',
+        'url': 'http://returned/filename',
+        })
+
+    self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
+      self.assert_equals_cmp({
+        'post_type': 'post',
+        'post_status': 'publish',
+        # TODO: better title
+        'post_title': '2012-11-06',
+        'post_content': """
+<p><a class="fb-link" alt="https://www.facebook.com/photo_album" href="https://www.facebook.com/photo_album">
+<img class="fb-link-thumbnail" src="https://its/my_photo.jpg" />
+<span class="fb-link-name">https://www.facebook.com/photo_album</span>
+</p>
+<p class="fb-tags">
+</p>
+
+<p><a class="shutter" href="http://returned/filename">
+  <img class="alignnone shadow" title="returned_filename" src="http://returned/filename" width='500' />
+</a></p>
+<p class="fb-via">
+<a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a>
+</p>""",
+        "post_date": datetime.datetime(2012, 11, 6, 5, 50, 21),
+        "comment_status": "open",
+        "terms_names": {"post_tag": freedom.POST_TAGS},
+        }))
+
+    self.mox.ReplayAll()
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'objectType': 'article',
+            'url': 'https://www.facebook.com/photo_album',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'id': 'tag:facebook.com,2012:212038_10100419011125143',
+        'image': {'url': 'https://its/my_photo.jpg'},
+        'objectType': 'photo',
+        'published': '2012-11-06T05:50:21+0000',
+        'updated': '2012-11-07T03:39:11+0000',
+        'url': 'http://facebook.com/212038/posts/10100419011125143',
+        })
 
 #   def test_multiple_pictures(self):
 #     self.xmlrpc.proxy.wp.uploadFile(BLOG_ID, 'my_user', 'my_passwd',
