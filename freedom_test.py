@@ -339,47 +339,148 @@ cc <a class="fb-mention" href="http://facebook.com/profile.php?id=13307262">Dani
         'updated': '2011-12-28T03:36:46+0000',
         'url': 'http://facebook.com/212038/posts/998665783603'})
 
-
 #   def test_picture(self):
 #     self.xmlrpc.proxy.wp.uploadFile(BLOG_ID, 'my_user', 'my_passwd',
-#                                  ...)
+#                                  'xyz')
 #     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
 #       self.assert_equals_cmp({
 #         'post_type': 'post',
 #         'post_status': 'publish',
 #         'post_title': 'Clothes shopping',
-#         'post_content': '''\
+#         'post_content': """\
 # Clothes shopping. Grudgingly.
-# <p><a class='fb-link' alt='We thank you for your enthusiasm for Macys!' href='https://www.facebook.com/MacysSanFranciscoUnionSquareCA'>
-# <img class='fb-link-thumbnail' src='https://macys/picture.jpg' />
-# <span class='fb-link-name'>https://www.facebook.com/MacysSanFranciscoUnionSquareCA</span>
-# <span class='fb-link-summary'>Ryan checked in at Macys San Francisco Union Square.</span>
+# <p><a class="fb-link" alt="We thank you for your enthusiasm for Macys!" href="https://www.facebook.com/MacysSanFranciscoUnionSquareCA">
+# <img class="fb-link-thumbnail" src="https://macys/picture.jpg" />
+# <span class="fb-link-name">https://www.facebook.com/MacysSanFranciscoUnionSquareCA</span>
+# <span class="fb-link-summary">Ryan checked in at Macys San Francisco Union Square.</span>
 # </p>
-# <p class='fb-tags'>
-# <span class='fb-checkin'> at <a href='http://facebook.com/161569013868015'>Macys San Francisco Union Square</a></span>
+# <p class="fb-tags">
+# <span class="fb-checkin"> at <a href="http://facebook.com/161569013868015">Macys San Francisco Union Square</a></span>
 # </p>
-# <p class='fb-via'>
-# <a href='http://facebook.com/212038/posts/10100419011125143'>via Facebook</a>
-# </p>''',
+# <p class="fb-via">
+# <a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a>
+# </p>""",
+#         "post_date": datetime.datetime(2012, 10, 14, 19, 41, 30),
+#         "comment_status": "open",
+#         "terms_names": {"post_tag": freedom.POST_TAGS},
+#         }))
+
+#     self.mox.ReplayAll()
+#     freedom.object_to_wordpress(self.xmlrpc, {
+#         'attachments': [{
+#             'objectType': 'article',
+#             'url': 'https://www.facebook.com/photo_album',
+#             }],
+#         'author': {
+#           'displayName': 'Ryan Barrett',
+#           'id': 'tag:facebook.com,2012:212038',
+#           'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+#           'url': 'http://facebook.com/212038',
+#           },
+#         'id': 'tag:facebook.com,2012:212038_10100419011125143',
+#         'image': {'url': 'https://my/photo.jpg'},
+#         'objectType': 'photo',
+#         'published': '2012-11-06T05:50:21+0000',
+#         'updated': '2012-11-07T03:39:11+0000',
+#         'url': 'http://facebook.com/212038/posts/10100419011125143',
+#         })
+
+#   def test_multiple_pictures(self):
+#     self.xmlrpc.proxy.wp.uploadFile(BLOG_ID, 'my_user', 'my_passwd',
+#                                  'xyz')
+#     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
+#       self.assert_equals_cmp({
+#         'post_type': 'post',
+#         'post_status': 'publish',
+#         'post_title': 'Clothes shopping',
+#         'post_content': """\
+# Clothes shopping. Grudgingly.
+# <p><a class="fb-link" alt="We thank you for your enthusiasm for Macys!" href="https://www.facebook.com/MacysSanFranciscoUnionSquareCA">
+# <img class="fb-link-thumbnail" src="https://macys/picture.jpg" />
+# <span class="fb-link-name">https://www.facebook.com/MacysSanFranciscoUnionSquareCA</span>
+# <span class="fb-link-summary">Ryan checked in at Macys San Francisco Union Square.</span>
+# </p>
+# <p class="fb-tags">
+# <span class="fb-checkin"> at <a href="http://facebook.com/161569013868015">Macys San Francisco Union Square</a></span>
+# </p>
+# <p class="fb-via">
+# <a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a>
+# </p>""",
 #         'post_date': datetime.datetime(2012, 10, 14, 19, 41, 30),
 #         'comment_status': 'open',
 #         'terms_names': {'post_tag': freedom.POST_TAGS},
 #         }))
 
 #     self.mox.ReplayAll()
-#     freedom.object_to_wordpress(self.xmlrpc,{
-#       'id': '212038_10100419011125143',
-#       'from': {
-#         'name': 'Ryan Barrett',
-#         'id': '212038'
-#       },
-#       'story': 'Ryan Barrett added a new photo.',
-#       'picture': 'https://my/photo.jpg',
-#       'link': 'https://www.facebook.com/photo.php?fbid=10100419011060273&set=a.10100419008909583.2449717.212038&type=1&relevant_count=1',
-#       'icon': 'https://s-static.ak.facebook.com/rsrc.php/v2/yz/r/StEh3RhPvjk.gif',
-#       'type': 'photo',
-#       'status_type': 'added_photos',
-#       'object_id': '10100419011060273',
-#       'created_time': '2012-11-06T05:50:21+0000',
-#       'updated_time': '2012-11-07T03:39:11+0000'
-#     })
+#     freedom.object_to_wordpress(self.xmlrpc, {
+#         'attachments': [{
+#             'objectType': 'article',
+#             'url': 'https://www.facebook.com/photo.php?fbid=10100411291505323&set=pcb.10100411291744843&type=1&relevant_count=2',
+#             }],
+#         'author': {
+#           'displayName': 'Ryan Barrett',
+#           'id': 'tag:facebook.com,2012:212038',
+#           'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+#           'url': 'http://facebook.com/212038',
+#           },
+#         'content': 'pumpkin carving!',
+#         'id': 'tag:facebook.com,2012:212038_10100411291744843',
+#         'image': {'url': 'https://fbcdn-photos-a.akamaihd.net/def.jpg'},
+#         'objectType': 'photo',
+#         'published': '2012-10-29T02:42:15+0000',
+#         'updated': '2012-10-29T05:43:45+0000',
+#         'url': 'http://facebook.com/212038/posts/10100411291744843',
+#         })
+
+  def test_location_without_content(self):
+    self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
+      self.assert_equals_cmp({
+        'post_type': 'post',
+        'post_status': 'publish',
+        'post_title': 'At Nihon Whisky Lounge',
+        'post_content': """
+<p><a class="fb-link" alt="Nihon Whisky Lounge" href="https://www.facebook.com/Nihon-Whisky-Lounge">
+<img class="fb-link-thumbnail" src="https://fbexternal-a.akamaihd.net/nihon.png" />
+<span class="fb-link-name">Nihon Whisky Lounge</span>
+<span class="fb-link-summary">Ryan checked in at Nihon Whisky Lounge.</span>
+</p>
+<p class="fb-tags">
+<span class="fb-checkin"> at <a href="http://facebook.com/116112148406150">Nihon Whisky Lounge</a></span>
+</p>
+<p class="fb-via">
+<a href="http://facebook.com/212038/posts/725208279633">via Facebook</a>
+</p>""",
+        'post_date': datetime.datetime(2010, 12, 5, 5, 0, 18),
+        'comment_status': 'open',
+        'terms_names': {'post_tag': freedom.POST_TAGS},
+        }))
+
+    self.mox.ReplayAll()
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'displayName': 'Nihon Whisky Lounge',
+            'objectType': 'article',
+            'summary': 'Ryan checked in at Nihon Whisky Lounge.',
+            'url': 'https://www.facebook.com/Nihon-Whisky-Lounge',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'id': 'tag:facebook.com,2012:212038_725208279633',
+        'image': {'url': 'https://fbexternal-a.akamaihd.net/nihon.png'},
+        'location': {
+          'displayName': 'Nihon Whisky Lounge',
+          'id': '116112148406150',
+          'latitude': 37.768653743517,
+          'longitude': -122.41549045767,
+          'position': '+37.768654-122.415490/',
+          'url': 'http://facebook.com/116112148406150',
+          },
+        'objectType': 'note',
+        'published': '2010-12-05T05:00:18+0000',
+        'updated': '2010-12-05T05:00:18+0000',
+        'url': 'http://facebook.com/212038/posts/725208279633',
+        })

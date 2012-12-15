@@ -74,15 +74,15 @@ def object_to_wordpress(xmlrpc, obj):
   """
   date = parse_iso8601(obj['published'])
   content = obj.get('content', '')
-  first_phrase = re.search('^[^,.:;?!]+', content)
   location = obj.get('location')
   image = obj.get('image', {}).get('url', {})
 
-  # title
+  # extract title
+  first_phrase = re.search('^[^,.:;?!]+', content)
   if first_phrase:
     title = first_phrase.group()
-  elif location and 'name' in location:
-    title = 'At ' + location['name']
+  elif location and 'displayName' in location:
+    title = 'At ' + location['displayName']
   else:
     title = date.date().isoformat()
 
