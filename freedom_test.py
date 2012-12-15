@@ -48,17 +48,19 @@ Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There 
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-        'id': '212038_157673343490',
-        'from': {
-          'name': 'Ryan Barrett',
-          'id': '212038'
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
           },
-        'message': "Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There are a couple more chefs I'm hoping to check out before I head south, and I also have a seat free for an incredible reservation Tues night.",
-        'type': 'status',
-        'status_type': 'mobile_status_update',
-        'created_time': '2009-10-15T22:05:49+0000',
-        'updated_time': '2009-10-16T03:50:08+0000'
+        'content': "Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There are a couple more chefs I'm hoping to check out before I head south, and I also have a seat free for an incredible reservation Tues night.",
+        'id': 'tag:facebook.com,2012:212038_157673343490',
+        'objectType': 'note',
+        'published': '2009-10-15T22:05:49+0000',
+        'updated': '2009-10-16T03:50:08+0000',
+        'url': 'http://facebook.com/212038/posts/157673343490',
         })
 
   def test_comments(self):
@@ -92,36 +94,37 @@ New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9H
         })
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-      'id': '212038_124561947600007',
-      'from': {
-        'name': 'Ryan Barrett',
-        'id': '212038'
-      },
-      'message': 'New blog post: World Series 2010 http://bit.ly/9HrEU5',
-      'type': 'status',
-      'status_type': 'mobile_status_update',
-      'application': {
-        'name': 'foo bar',
-        'id': '131732509879'
-      },
-      'created_time': '2010-10-28T00:04:03+0000',
-      'updated_time': '2010-10-28T00:23:04+0000',
-      'comments': {
-        'data': [
-          {
-            'id': '212038_124561947600007_672819',
-            'from': {
-              'name': 'Ron Ald',
-              'id': '513046677'
-            },
-            'message': "New blog: You're awesome.",
-            'created_time': '2010-10-28T00:23:04+0000'
-          }
-        ],
-        'count': 1
-      }
-    })
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'content': 'New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9HrEU5</a>',
+        'id': 'tag:facebook.com,2012:212038_124561947600007',
+        'objectType': 'note',
+        'published': '2010-10-28T00:04:03+0000',
+        'replies': {
+          'items': [{
+              'author': {
+                'displayName': 'Ron Ald',
+                'id': 'tag:facebook.com,2012:513046677',
+                'image': {'url': 'http://graph.facebook.com/513046677/picture?type=large'},
+                'url': 'http://facebook.com/513046677',
+                },
+              'content': "New blog: You're awesome.",
+              'id': 'tag:facebook.com,2012:212038_124561947600007_672819',
+              'inReplyTo': {'id': 'tag:facebook.com,2012:212038_124561947600007'},
+              'objectType': 'comment',
+              'published': '2010-10-28T00:23:04+0000',
+              'url': 'http://facebook.com/212038/posts/124561947600007?comment_id=672819',
+              }],
+          'totalItems': 1,
+          },
+        'updated': '2010-10-28T00:23:04+0000',
+        'url': 'http://facebook.com/212038/posts/124561947600007',
+        })
 
   def test_link(self):
     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
@@ -147,22 +150,27 @@ Paul Graham inspired me to put this at the top of my todo list, to force myself 
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-      'id': '212038_407323642625868',
-      'from': {
-        'name': 'Ryan Barrett',
-        'id': '212038'
-      },
-      'message': 'Paul Graham inspired me to put this at the top of my todo list, to force myself to think about it regularly.',
-      'picture': 'http://my/image.jpg',
-      'link': 'http://paulgraham.com/todo.html',
-      'name': 'The Top of My Todo List',
-      'caption': 'paulgraham.com',
-      'type': 'link',
-      'status_type': 'shared_story',
-      'created_time': '2012-04-22T17:08:04+0000',
-      'updated_time': '2012-04-22T17:08:04+0000',
-    })
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'displayName': 'The Top of My Todo List',
+            'objectType': 'article',
+            'summary': 'paulgraham.com',
+            'url': 'http://paulgraham.com/todo.html',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'content': 'Paul Graham inspired me to put this at the top of my todo list, to force myself to think about it regularly.',
+        'id': 'tag:facebook.com,2012:212038_407323642625868',
+        'image': {'url': 'http://my/image.jpg'},
+        'objectType': 'article',
+        'published': '2012-04-22T17:08:04+0000',
+        'updated': '2012-04-22T17:08:04+0000',
+        'url': 'http://facebook.com/212038/posts/407323642625868',
+        })
 
   def test_location(self):
     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
@@ -189,41 +197,36 @@ Clothes shopping. Grudgingly.
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-      'id': '212038_10100397129690713',
-      'from': {
-        'name': 'Ryan Barrett',
-        'id': '212038'
-      },
-      'message': 'Clothes shopping. Grudgingly.',
-      'picture': 'https://macys/picture.jpg',
-      'link': 'https://www.facebook.com/MacysSanFranciscoUnionSquareCA',
-      'name': 'name: Macys San Francisco Union Square',
-      'caption': 'Ryan checked in at Macys San Francisco Union Square.',
-      'description': 'We thank you for your enthusiasm for Macys!',
-      'icon': 'https://www.facebook.com/images/icons/place.png',
-      'place': {
-        'id': '161569013868015',
-        'name': 'place: Macys San Francisco Union Square',
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'content': 'We thank you for your enthusiasm for Macys!',
+            'displayName': 'name: Macys San Francisco Union Square',
+            'objectType': 'article',
+            'summary': 'Ryan checked in at Macys San Francisco Union Square.',
+            'url': 'https://www.facebook.com/MacysSanFranciscoUnionSquareCA',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'content': 'Clothes shopping. Grudgingly.',
+        'id': 'tag:facebook.com,2012:212038_10100397129690713',
+        'image': {'url': 'https://macys/picture.jpg'},
         'location': {
-          'street': '170 OFARRELL ST',
-          'city': 'San Francisco',
-          'state': 'CA',
-          'country': 'United States',
-          'zip': '94102',
+          'displayName': 'place: Macys San Francisco Union Square',
+          'id': '161569013868015',
           'latitude': 37.787235321839,
-          'longitude': -122.40721521845
-        }
-      },
-      'type': 'checkin',
-      'application': {
-        'name': 'Facebook for Android',
-        'namespace': 'fbandroid',
-        'id': '350685531728'
-      },
-      'created_time': '2012-10-14T19:41:30+0000',
-      'updated_time': '2012-10-15T03:59:48+0000'
-    })
+          'longitude': -122.40721521845,
+          'position': '+37.787235-122.407215/',
+          'url': 'http://facebook.com/161569013868015',
+          },
+        'objectType': 'note',
+        'published': '2012-10-14T19:41:30+0000',
+        'updated': '2012-10-15T03:59:48+0000',
+        'url': 'http://facebook.com/212038/posts/10100397129690713',
+        })
 
   def test_linkify_content(self):
     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
@@ -235,7 +238,7 @@ Clothes shopping. Grudgingly.
 Oz Noy trio is killing it.
 <a href="http://oznoy.com/">http://oznoy.com/</a>
 <p><a class="fb-link" alt="The 55 Bar" href="https://www.facebook.com/pages/The-55-Bar/136676259709087">
-<img class="fb-link-thumbnail" src="https://fbcdn-profile-a.akamaihd.net/static-ak/rsrc.php/v2/y5/r/j258ei8TIHu.png" />
+<img class="fb-link-thumbnail" src="https://fbcdn-profile-a.akamaihd.net/abc.png" />
 <span class="fb-link-name">The 55 Bar</span>
 <span class="fb-link-summary">Ryan checked in at The 55 Bar.</span>
 </p>
@@ -250,22 +253,26 @@ Oz Noy trio is killing it.
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-        'id': '212038_10100242451207633',
-        'from': {
-          'name': 'Ryan Barrett',
-          'id': '212038'
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'displayName': 'The 55 Bar',
+            'objectType': 'article',
+            'summary': 'Ryan checked in at The 55 Bar.',
+            'url': 'https://www.facebook.com/pages/The-55-Bar/136676259709087',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
           },
-        'message': 'Oz Noy trio is killing it.\nhttp://oznoy.com/',
-        'picture': 'https://fbcdn-profile-a.akamaihd.net/static-ak/rsrc.php/v2/y5/r/j258ei8TIHu.png',
-        'link': 'https://www.facebook.com/pages/The-55-Bar/136676259709087',
-        'name': 'The 55 Bar',
-        'caption': 'Ryan checked in at The 55 Bar.',
-        'icon': 'https://www.facebook.com/images/icons/place.png',
-        'type': 'status',
-        'status_type': 'mobile_status_update',
-        'created_time': '2012-04-26T04:29:56+0000',
-        'updated_time': '2012-04-26T04:29:56+0000'
+        'content': 'Oz Noy trio is killing it.\n<a href="http://oznoy.com/">http://oznoy.com/</a>',
+        'id': 'tag:facebook.com,2012:212038_10100242451207633',
+        'image': {'url': 'https://fbcdn-profile-a.akamaihd.net/abc.png'},
+        'objectType': 'note',
+        'published': '2012-04-26T04:29:56+0000',
+        'updated': '2012-04-26T04:29:56+0000',
+        'url': 'http://facebook.com/212038/posts/10100242451207633',
         })
 
   def test_mention_and_with_tags(self):
@@ -293,76 +300,44 @@ cc <a class="fb-mention" href="http://facebook.com/profile.php?id=13307262">Dani
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-      'id': '212038_998665783603',
-      'from': {
-        'name': 'Ryan Barrett',
-        'id': '212038'
-      },
-      'to': {
-        'data': [
-          {'name': 'Warren Ahner', 'id': '9374038'},
-          {'name': 'Steve Garrity', 'id': '201963'},
-          {'name': 'Devon LaHar', 'id': '1506309346'},
-          {'name': 'Gina Rossman', 'id': '100000224384191'}
-        ]
-      },
-      'message': "discovered in the far back of a dusty cabinet at my parents' house. been sitting there for over five years. evidently the camus 140th anniversary is somewhat special, and damn good.\n\ncc Daniel Meredith, Warren Ahner, Steve Garrity, Devon LaHar, Gina Rossman",
-      'message_tags': {
-        '186': [
-          {
-            'id': '13307262',
-            'name': 'Daniel Meredith',
-            'type': 'user',
-            'offset': 186,
-            'length': 15
-          }
-        ],
-        '203': [
-          {
-            'id': '9374038',
-            'name': 'Warren Ahner',
-            'type': 'user',
-            'offset': 203,
-            'length': 12
-          }
-        ],
-        '217': [
-          {
-            'id': '201963',
-            'name': 'Steve Garrity',
-            'type': 'user',
-            'offset': 217,
-            'length': 13
-          }
-        ],
-        '232': [
-          {
-            'id': '1506309346',
-            'name': 'Devon LaHar',
-            'type': 'user',
-            'offset': 232,
-            'length': 11
-          }
-        ],
-        '245': [
-          {
-            'id': '100000224384191',
-            'name': 'Gina Rossman',
-            'type': 'user',
-            'offset': 245,
-            'length': 12
-          }
-        ]
-      },
-      'link': 'https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1',
-      'icon': 'https://s-static.ak.facebook.com/rsrc.php/v2/yz/r/StEh3RhPvjk.gif',
-      'type': 'status',
-      'status_type': 'shared_story',
-      'object_id': '998665748673',
-      'created_time': '2011-12-28T03:36:46+0000',
-      'updated_time': '2011-12-28T03:36:46+0000',
-    })
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'objectType': 'article',
+            'url': 'https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'content': 'discovered in the far back of a dusty cabinet at my parents\' house. been sitting there for over five years. evidently the camus 140th anniversary is somewhat special, and damn good.\n\ncc <a class="fb-mention" href="http://facebook.com/profile.php?id=13307262">Daniel Meredith</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=9374038">Warren Ahner</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=201963">Steve Garrity</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=1506309346">Devon LaHar</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=100000224384191">Gina Rossman</a>',
+        'id': 'tag:facebook.com,2012:212038_998665783603',
+        'objectType': 'note',
+        'published': '2011-12-28T03:36:46+0000',
+        'tags': [{
+            'displayName': 'Gina Rossman',
+            'id': 'tag:facebook.com,2012:100000224384191',
+            'objectType': 'person',
+            'url': 'http://facebook.com/100000224384191',
+            }, {
+            'displayName': 'Devon LaHar',
+            'id': 'tag:facebook.com,2012:1506309346',
+            'objectType': 'person',
+            'url': 'http://facebook.com/1506309346',
+            }, {
+            'displayName': 'Steve Garrity',
+            'id': 'tag:facebook.com,2012:201963',
+            'objectType': 'person',
+            'url': 'http://facebook.com/201963',
+            }, {
+            'displayName': 'Warren Ahner',
+            'id': 'tag:facebook.com,2012:9374038',
+            'objectType': 'person',
+            'url': 'http://facebook.com/9374038',
+            }],
+        'updated': '2011-12-28T03:36:46+0000',
+        'url': 'http://facebook.com/212038/posts/998665783603'})
 
 
 #   def test_picture(self):
@@ -392,7 +367,7 @@ cc <a class="fb-mention" href="http://facebook.com/profile.php?id=13307262">Dani
 #         }))
 
 #     self.mox.ReplayAll()
-#     freedom.post_to_wordpress(self.xmlrpc,{
+#     freedom.object_to_wordpress(self.xmlrpc,{
 #       'id': '212038_10100419011125143',
 #       'from': {
 #         'name': 'Ryan Barrett',

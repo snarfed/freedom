@@ -65,19 +65,14 @@ SCALED_IMG_WIDTH = 500
 PAUSE_SEC = 1
 
 
-def post_to_wordpress(xmlrpc, post):
-  """Translates a post and posts it to WordPress.
+def object_to_wordpress(xmlrpc, obj):
+  """Translates an object and posts it to WordPress.
 
   Args:
-    post: dict, a decoded JSON post
+    obj: dict, a decoded JSON ActivityStreams object
     xmlrpc: XmlRpc object
   """
-  obj = facebook.Facebook(None).post_to_object(post)
-  if not obj:
-    return
-
   date = parse_iso8601(obj['published'])
-
   content = obj.get('content', '')
   first_phrase = re.search('^[^,.:;?!]+', content)
   location = obj.get('location')
@@ -91,17 +86,18 @@ def post_to_wordpress(xmlrpc, post):
   else:
     title = date.date().isoformat()
 
-  # check whether we should publish this
-  ptype = post.get('type')
-  stype = post.get('status_type')
-  app = post.get('application', {}).get('name')
-  if ((ptype not in POST_TYPES and stype not in STATUS_TYPES) or
-      (app and app in APPLICATION_BLACKLIST) or
-      # posts with 'story' aren't explicit posts. they're friend approvals or
-      # likes or photo tags or comments on other people's posts.
-      'story' in obj):
-    logging.info('Skipping %s' % title)
-    return
+    # TODO
+  # # check whether we should publish this
+  # ptype = post.get('type')
+  # stype = post.get('status_type')
+  # app = post.get('application', {}).get('name')
+  # if ((ptype not in POST_TYPES and stype not in STATUS_TYPES) or
+  #     (app and app in APPLICATION_BLACKLIST) or
+  #     # posts with 'story' aren't explicit posts. they're friend approvals or
+  #     # likes or photo tags or comments on other people's posts.
+  #     'story' in obj):
+  #   logging.info('Skipping %s' % title)
+  #   return
 
   # attachments, e.g. links (aka articles)
   for att in obj.get('attachments', []):
@@ -137,8 +133,10 @@ def post_to_wordpress(xmlrpc, post):
   content += '</p>\n'
 
   # photo
-  if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
-    orig_image = image[:-6] + '_o.jpg'
+  # TODO
+  # if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
+    # orig_image = image[:-6] + '_o.jpg'
+  if obj.get('objectType') == 'photo':
     logging.info('Downloading %s', orig_image)
     resp = urllib2.urlopen(orig_image)
     filename = os.path.basename(urlparse.urlparse(orig_image).path)
@@ -217,7 +215,9 @@ def main(args):
   xmlrpc = XmlRpc(url, 0, user, passwd, verbose=False)
 
   for post in posts:
-    post_to_wordpress(xmlrpc, post)
+    obj = facebook.Facebook(None).post_to_object(post)
+    if obj:
+      object_to_wordpress(xmlrpc, obj)
 
   print 'Done.'
 
