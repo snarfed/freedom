@@ -39,12 +39,8 @@ class Test(testutil.HandlerTest):
         'post_status': 'publish',
         'post_title': 'Anyone in or near Paris right now',
         'post_content': """\
-Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There are a couple more chefs I'm hoping to check out before I head south, and I also have a seat free for an incredible reservation Tues night.
-<p class="freedom-tags">
-</p>
-<p class="freedom-via">
-<a href="http://facebook.com/212038/posts/157673343490">via Facebook</a>
-</p>""",
+<p>Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There are a couple more chefs I'm hoping to check out before I head south, and I also have a seat free for an incredible reservation Tues night.</p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/157673343490">via Facebook</a></p>""",
         'post_date': datetime.datetime(2009, 10, 15, 22, 05, 49),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
@@ -74,13 +70,8 @@ Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There 
         'post_type': 'post',
         'post_status': 'publish',
         'post_title': 'New blog post',
-        'post_content': """\
-New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9HrEU5</a>
-<p class="freedom-tags">
-</p>
-<p class="freedom-via">
-<a href="http://facebook.com/212038/posts/124561947600007">via Facebook</a>
-</p>""",
+        'post_content': """<p>New blog post: World Series 2010</p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/124561947600007">via Facebook</a></p>""",
         'post_date': datetime.datetime(2010, 10, 28, 00, 04, 03),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
@@ -89,8 +80,8 @@ New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9H
       self.assert_equals_cmp({
         'author': 'Ron Ald',
         'author_url': 'http://facebook.com/513046677',
-        'content': """New blog: You're awesome.
-<cite><a href="http://facebook.com/212038/posts/124561947600007?comment_id=672819">via Facebook</a></cite>""",
+        'content': """<p>New blog: You're awesome.</p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/124561947600007?comment_id=672819">via Facebook</a></p>""",
         })).AndReturn(comment_id)
     self.xmlrpc.proxy.wp.editComment(BLOG_ID, 'my_user', 'my_passwd', comment_id, {
         'date_created_gmt': datetime.datetime(2010, 10, 28, 0, 23, 4),
@@ -104,7 +95,7 @@ New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9H
           'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
           'url': 'http://facebook.com/212038',
           },
-        'content': 'New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9HrEU5</a>',
+        'content': 'New blog post: World Series 2010',
         'id': 'tag:facebook.com,2012:212038_124561947600007',
         'objectType': 'note',
         'published': '2010-10-28T00:04:03+0000',
@@ -136,17 +127,13 @@ New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9H
         'post_status': 'publish',
         'post_title': 'Paul Graham inspired me to put this at the top of my todo list',
         'post_content': """\
-Paul Graham inspired me to put this at the top of my todo list, to force myself to think about it regularly.
+<p>Paul Graham inspired me to put this at the top of my todo list, to force myself to think about it regularly.</p>
 <p><a class="freedom-link" alt="The Top of My Todo List" href="http://paulgraham.com/todo.html">
 <img class="freedom-link-thumbnail" src="http://my/image.jpg" />
 <span class="freedom-link-name">The Top of My Todo List</span>
 <span class="freedom-link-summary">paulgraham.com</span>
 </p>
-<p class="freedom-tags">
-</p>
-<p class="freedom-via">
-<a href="http://facebook.com/212038/posts/407323642625868">via Facebook</a>
-</p>""",
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/407323642625868">via Facebook</a></p>""",
         'post_date': datetime.datetime(2012, 4, 22, 17, 8, 4),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
@@ -182,18 +169,14 @@ Paul Graham inspired me to put this at the top of my todo list, to force myself 
         'post_status': 'publish',
         'post_title': 'Clothes shopping',
         'post_content': """\
-Clothes shopping. Grudgingly.
+<p>Clothes shopping. Grudgingly.</p>
 <p><a class="freedom-link" alt="name: Macys San Francisco Union Square" href="https://www.facebook.com/MacysSanFranciscoUnionSquareCA">
 <img class="freedom-link-thumbnail" src="https://macys/picture.jpg" />
 <span class="freedom-link-name">name: Macys San Francisco Union Square</span>
 <span class="freedom-link-summary">Ryan checked in at Macys San Francisco Union Square.</span>
 </p>
-<p class="freedom-tags">
-<span class="freedom-location"> at <a href="http://facebook.com/161569013868015">place: Macys San Francisco Union Square</a></span>
-</p>
-<p class="freedom-via">
-<a href="http://facebook.com/212038/posts/10100397129690713">via Facebook</a>
-</p>""",
+<p class="freedom-checkin"> at <a href="http://facebook.com/161569013868015">place: Macys San Francisco Union Square</a></p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/10100397129690713">via Facebook</a></p>""",
         'post_date': datetime.datetime(2012, 10, 14, 19, 41, 30),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
@@ -238,18 +221,14 @@ Clothes shopping. Grudgingly.
         'post_status': 'publish',
         'post_title': 'Oz Noy trio is killing it',
         'post_content': """\
-Oz Noy trio is killing it.
-<a href="http://oznoy.com/">http://oznoy.com/</a>
+<p>Oz Noy trio is killing it.
+<a href="http://oznoy.com/">http://oznoy.com/</a></p>
 <p><a class="freedom-link" alt="The 55 Bar" href="https://www.facebook.com/pages/The-55-Bar/136676259709087">
 <img class="freedom-link-thumbnail" src="https://fbcdn-profile-a.akamaihd.net/abc.png" />
 <span class="freedom-link-name">The 55 Bar</span>
 <span class="freedom-link-summary">Ryan checked in at The 55 Bar.</span>
 </p>
-<p class="freedom-tags">
-</p>
-<p class="freedom-via">
-<a href="http://facebook.com/212038/posts/10100242451207633">via Facebook</a>
-</p>""",
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/10100242451207633">via Facebook</a></p>""",
         'post_date': datetime.datetime(2012, 4, 26, 4, 29, 56),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
@@ -269,7 +248,7 @@ Oz Noy trio is killing it.
           'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
           'url': 'http://facebook.com/212038',
           },
-        'content': 'Oz Noy trio is killing it.\n<a href="http://oznoy.com/">http://oznoy.com/</a>',
+        'content': 'Oz Noy trio is killing it.\nhttp://oznoy.com/',
         'id': 'tag:facebook.com,2012:212038_10100242451207633',
         'image': {'url': 'https://fbcdn-profile-a.akamaihd.net/abc.png'},
         'objectType': 'note',
@@ -285,18 +264,15 @@ Oz Noy trio is killing it.
         'post_status': 'publish',
         'post_title': "discovered in the far back of a dusty cabinet at my parents' house",
         'post_content': """\
-discovered in the far back of a dusty cabinet at my parents' house. been sitting there for over five years. evidently the camus 140th anniversary is somewhat special, and damn good.
+<p>discovered in the far back of a dusty cabinet at my parents' house. been sitting there for over five years. evidently the camus 140th anniversary is somewhat special, and damn good.
 
-cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262">Daniel Meredith</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=9374038">Warren Ahner</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=201963">Steve Garrity</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=1506309346">Devon LaHar</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=100000224384191">Gina Rossman</a>
+cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262">Daniel Meredith</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=9374038">Warren Ahner</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=201963">Steve Garrity</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=1506309346">Devon LaHar</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=100000224384191">Gina Rossman</a></p>
 <p><a class="freedom-link" alt="https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1" href="https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1">
-<img class="freedom-link-thumbnail" src="{}" />
+<img class="freedom-link-thumbnail" src="" />
 <span class="freedom-link-name">https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1</span>
 </p>
-<p class="freedom-tags">
-<span class="freedom-with"> with <a href="http://facebook.com/100000224384191">Gina Rossman</a>, <a href="http://facebook.com/1506309346">Devon LaHar</a>, <a href="http://facebook.com/201963">Steve Garrity</a>, <a href="http://facebook.com/9374038">Warren Ahner</a></span></p>
-<p class="freedom-via">
-<a href="http://facebook.com/212038/posts/998665783603">via Facebook</a>
-</p>""",
+<p class="freedom-tags"><a href="http://facebook.com/100000224384191">Gina Rossman</a>, <a href="http://facebook.com/1506309346">Devon LaHar</a>, <a href="http://facebook.com/201963">Steve Garrity</a>, <a href="http://facebook.com/9374038">Warren Ahner</a></p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/998665783603">via Facebook</a></p>""",
         'post_date': datetime.datetime(2011, 12, 28, 3, 36, 46),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
@@ -367,20 +343,16 @@ cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262"
         'post_status': 'publish',
         # TODO: better title
         'post_title': '2012-11-06',
-        'post_content': """
+        'post_content': """<p></p>
 <p><a class="freedom-link" alt="https://www.facebook.com/photo_album" href="https://www.facebook.com/photo_album">
 <img class="freedom-link-thumbnail" src="https://its/my_photo.jpg" />
 <span class="freedom-link-name">https://www.facebook.com/photo_album</span>
-</p>
-<p class="freedom-tags">
 </p>
 
 <p><a class="shutter" href="http://returned/filename">
   <img class="alignnone shadow" title="returned_filename" src="http://returned/filename" width='500' />
 </a></p>
-<p class="freedom-via">
-<a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a>
-</p>""",
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a></p>""",
         "post_date": datetime.datetime(2012, 11, 6, 5, 50, 21),
         "comment_status": "open",
         "terms_names": {"post_tag": freedom.POST_TAGS},
@@ -424,9 +396,7 @@ cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262"
 # <p class="freedom-tags">
 # <span class="freedom-location"> at <a href="http://facebook.com/161569013868015">Macys San Francisco Union Square</a></span>
 # </p>
-# <p class="freedom-via">
-# <a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a>
-# </p>""",
+# <p class="freedom-via"><a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a></p>""",
 #         'post_date': datetime.datetime(2012, 10, 14, 19, 41, 30),
 #         'comment_status': 'open',
 #         'terms_names': {'post_tag': freedom.POST_TAGS},
@@ -459,18 +429,14 @@ cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262"
         'post_type': 'post',
         'post_status': 'publish',
         'post_title': 'At Nihon Whisky Lounge',
-        'post_content': """
+        'post_content': """\
 <p><a class="freedom-link" alt="Nihon Whisky Lounge" href="https://www.facebook.com/Nihon-Whisky-Lounge">
 <img class="freedom-link-thumbnail" src="https://fbexternal-a.akamaihd.net/nihon.png" />
 <span class="freedom-link-name">Nihon Whisky Lounge</span>
 <span class="freedom-link-summary">Ryan checked in at Nihon Whisky Lounge.</span>
 </p>
-<p class="freedom-tags">
-<span class="freedom-location"> at <a href="http://facebook.com/116112148406150">Nihon Whisky Lounge</a></span>
-</p>
-<p class="freedom-via">
-<a href="http://facebook.com/212038/posts/725208279633">via Facebook</a>
-</p>""",
+<p class="freedom-checkin"> at <a href="http://facebook.com/116112148406150">Nihon Whisky Lounge</a></p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/725208279633">via Facebook</a></p>""",
         'post_date': datetime.datetime(2010, 12, 5, 5, 0, 18),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
@@ -508,8 +474,13 @@ cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262"
 
 
   def test_render_no_tags(self):
-    self.assert_equals('abc', freedom.render({'content': 'abc'}))
-    self.assert_equals('abc', freedom.render({'content': 'abc', 'tags': []}))
+    self.assert_equals("""<p>abc</p>
+<p class="freedom-via"><a href="">via Facebook</a></p>""",
+                       freedom.render({'content': 'abc'}))
+
+    self.assert_equals("""<p>abc</p>
+<p class="freedom-via"><a href="li/nk">via Facebook</a></p>""",
+                       freedom.render({'content': 'abc', 'tags': [], 'url': 'li/nk'}))
 
   def test_render(self):
     self.assert_equals(
@@ -521,7 +492,7 @@ cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262"
 </p>
 <p class="freedom-hashtags"><a href="j/kl">#jkl</a></p>
 <p class="freedom-tags"><a href="ryan/b">Ryan B</a>, <a href="d/ef">def</a>, <a href="ev/ent">my event</a></p>
-""",
+<p class="freedom-via"><a href="">via Facebook</a></p>""",
       freedom.render({
           'content': 'X @abc def #ghi Y',
           'tags': [{

@@ -103,20 +103,20 @@ def preprocess_twitter(post):
 
   Returns: the processed post dict, or None if it should not be posted
   """
-  app = post.get('application', {}).get('name')
-  if ((post.get('type') not in POST_TYPES and
-       post.get('status_type') not in STATUS_TYPES) or
-      (app and app in APPLICATION_BLACKLIST) or
-      # posts with 'story' aren't explicit posts. they're friend approvals or
-      # likes or photo tags or comments on other people's posts.
-      'story' in obj):
-    logging.info('Skipping %s', post.get('id'))
-    return None
+  # app = post.get('application', {}).get('name')
+  # if ((post.get('type') not in POST_TYPES and
+  #      post.get('status_type') not in STATUS_TYPES) or
+  #     (app and app in APPLICATION_BLACKLIST) or
+  #     # posts with 'story' aren't explicit posts. they're friend approvals or
+  #     # likes or photo tags or comments on other people's posts.
+  #     'story' in obj):
+  #   logging.info('Skipping %s', post.get('id'))
+  #   return None
 
-  # for photos, get a larger version
-  image = post.get('image', '')
-  if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
-    post['image'] = image[:-6] + '_o.jpg'
+  # # for photos, get a larger version
+  # image = post.get('image', '')
+  # if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
+  #   post['image'] = image[:-6] + '_o.jpg'
 
   return post
 
@@ -125,6 +125,8 @@ def render(obj):
   """Adds HTML links to content based on tags and returns the result.
 
   Also adds links to embedded URLs.
+
+  TODO: convert newlines to <br> or <p>
 
   For example:
 
@@ -170,7 +172,8 @@ def render(obj):
     content += orig[last_end:]
 
   # linkify embedded links. ignore the "mention" tags that we added ourselves.
-  content = '<p>' + util.linkify(content) + '</p>\n'
+  if content:
+    content = '<p>' + util.linkify(content) + '</p>\n'
 
   # attachments, e.g. links (aka articles)
   # TODO: non-article attachments
@@ -178,7 +181,10 @@ def render(obj):
     if link.get('objectType') == 'article':
       url = link.get('url')
       name = link.get('displayName', url)
-      image = link.get('image', {}).get('url', '')
+      image = link.get('image', {}).get('url')
+      if not image:
+        image = obj.get('image', {}).get('url', '')
+
       content += """\
 <p><a class="freedom-link" alt="%s" href="%s">
 <img class="freedom-link-thumbnail" src="%s" />
@@ -197,7 +203,12 @@ def render(obj):
 
   # other tags
   content += render_tags(tags.pop('hashtag', []), 'freedom-hashtags')
-  content += render_tags(itertools.chain(*tags.values()), 'freedom-tags')
+  content += render_tags(sum(tags.values(), []), 'freedom-tags')
+
+  # "via Facebook"
+  # TODO: parameterize source name
+  url = obj.get('url', '')
+  content += '<p class="freedom-via"><a href="%s">via Facebook</a></p>' % url
 
   return content
 
@@ -226,18 +237,20 @@ def object_to_wordpress(xmlrpc, obj):
     xmlrpc: XmlRpc object
   """
   date = parse_iso8601(obj['published'])
-  content = obj.get('content', '')
   location = obj.get('location')
   image = obj.get('image', {}).get('url', '')
+  content = render(obj)
 
   # extract title
-  first_phrase = re.search('^[^,.:;?!]+', content)
-  if first_phrase:
-    title = first_phrase.group()
-  elif location and 'displayName' in location:
-    title = 'At ' + location['displayName']
-  else:
-    title = date.date().isoformat()
+  title = obj.get('title')
+  if not title:
+    first_phrase = re.search('^[^,.:;?!]+', obj.get('content', ''))
+    if first_phrase:
+      title = first_phrase.group()
+    elif location and 'displayName' in location:
+      title = 'At ' + location['displayName']
+    else:
+      title = date.date().isoformat()
 
   # photo
   if obj.get('objectType') == 'photo' and image:
@@ -254,11 +267,6 @@ def object_to_wordpress(xmlrpc, obj):
       str(SCALED_IMG_WIDTH) + """' />
 </a></p>
 """) % resp
-
-  # "via Facebook"
-  content += """<p class="freedom-via">
-<a href="%s">via Facebook</a>
-</p>""" % obj.get('url')
 
   # post!
   logging.info('Publishing %s', title)
@@ -285,12 +293,10 @@ def object_to_wordpress(xmlrpc, obj):
       continue
     logging.info('Publishing reply "%s"', content[:30])
 
-    content += ('\n<cite><a href="%s">via Facebook</a></cite>' % reply.get('url'))
-
     comment_id = xmlrpc.new_comment(post_id, {
           'author': author.get('displayName', 'Anonymous'),
           'author_url': author.get('url'),
-          'content': content,
+          'content': render(reply),
           })
 
     published = reply.get('published')
