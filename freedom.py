@@ -103,25 +103,11 @@ def preprocess_twitter(post):
 
   Returns: the processed post dict, or None if it should not be posted
   """
-  # app = post.get('application', {}).get('name')
-  # if ((post.get('type') not in POST_TYPES and
-  #      post.get('status_type') not in STATUS_TYPES) or
-  #     (app and app in APPLICATION_BLACKLIST) or
-  #     # posts with 'story' aren't explicit posts. they're friend approvals or
-  #     # likes or photo tags or comments on other people's posts.
-  #     'story' in obj):
-  #   logging.info('Skipping %s', post.get('id'))
-  #   return None
-
-  # # for photos, get a larger version
-  # image = post.get('image', '')
-  # if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
-  #   post['image'] = image[:-6] + '_o.jpg'
-
+  # TODO
   return post
 
 
-def render(obj):
+def render(obj, uploaded_image=None):
   """Adds HTML links to content based on tags and returns the result.
 
   Also adds links to embedded URLs.
@@ -132,6 +118,7 @@ def render(obj):
 
   Args:
     obj: dict, a decoded JSON ActivityStreams object
+    uploaded_image: optional wp.uploadFile response dict with 'file' and 'url' items
 
   Returns: string, the content field in obj with the tags in the tags field
     converted to links if they have startIndex and length, otherwise added to
@@ -205,6 +192,15 @@ def render(obj):
   content += render_tags(tags.pop('hashtag', []), 'freedom-hashtags')
   content += render_tags(sum(tags.values(), []), 'freedom-tags')
 
+  # add image
+  if uploaded_image:
+    content += ("""
+<p><a class="shutter" href="%(url)s">
+  <img class="alignnone shadow" title="%(file)s" src="%(url)s" width='""" +
+      str(SCALED_IMG_WIDTH) + """' />
+</a></p>
+""") % uploaded_image
+
   # "via Facebook"
   # TODO: parameterize source name
   url = obj.get('url', '')
@@ -239,7 +235,6 @@ def object_to_wordpress(xmlrpc, obj):
   date = parse_iso8601(obj['published'])
   location = obj.get('location')
   image = obj.get('image', {}).get('url', '')
-  content = render(obj)
 
   # extract title
   title = obj.get('title')
@@ -253,20 +248,16 @@ def object_to_wordpress(xmlrpc, obj):
       title = date.date().isoformat()
 
   # photo
+  upload = None
   if obj.get('objectType') == 'photo' and image:
     logging.info('Downloading %s', image)
     resp = urllib2.urlopen(image)
     filename = os.path.basename(urlparse.urlparse(image).path)
     mime_type = resp.info().gettype()
-
     logging.info('Uploading as %s', mime_type)
-    resp = xmlrpc.upload_file(filename, mime_type, resp.read())
-    content += ("""
-<p><a class="shutter" href="%(url)s">
-  <img class="alignnone shadow" title="%(file)s" src="%(url)s" width='""" +
-      str(SCALED_IMG_WIDTH) + """' />
-</a></p>
-""") % resp
+    upload = xmlrpc.upload_file(filename, mime_type, resp.read())
+
+  content = render(obj, upload)
 
   # post!
   logging.info('Publishing %s', title)

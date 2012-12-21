@@ -319,6 +319,7 @@ cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262"
         'url': 'http://facebook.com/212038/posts/998665783603'})
 
   def test_picture(self):
+    # fake and mock the urllib2.urlopen response
     class Info(object):
       def gettype(self):
         return 'my mime type'
@@ -343,7 +344,7 @@ cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262"
         'post_status': 'publish',
         # TODO: better title
         'post_title': '2012-11-06',
-        'post_content': """<p></p>
+        'post_content': """\
 <p><a class="freedom-link" alt="https://www.facebook.com/photo_album" href="https://www.facebook.com/photo_album">
 <img class="freedom-link-thumbnail" src="https://its/my_photo.jpg" />
 <span class="freedom-link-name">https://www.facebook.com/photo_album</span>
