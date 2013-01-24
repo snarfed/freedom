@@ -1,6 +1,6 @@
 # queue handlers are defined in tasks.py
 queue:
-- name: poll
+- name: scan
   rate: 1/s
 
 - name: propagate

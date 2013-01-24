@@ -536,3 +536,7 @@ cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262"
               'url': 'm/no',
               }],
           }))
+
+  def test_preprocess_googleplus(self):
+    pass
+

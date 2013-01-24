@@ -1,13 +1,7 @@
 """Task queue handlers.
-
-TODO: cron job to find sources without seed poll tasks.
-TODO: think about how to determine stopping point. can all sources return
-salmons in strict descending timestamp order? can we require/generate
-monotonically increasing salmon ids for all sources?
-TODO: check HRD consistency guarantees and change as needed
 """
 
-__author__ = ['Ryan Barrett <salmon@ryanb.org>']
+__author__ = ['Ryan Barrett <freedom@ryanb.org>']
 
 import datetime
 import itertools
@@ -17,7 +11,7 @@ import re
 import time
 from webob import exc
 
-# need to import model class definitions since poll creates and saves entities.
+# need to import model class definitions since scan creates and saves entities.
 import facebook
 from models import Source
 import googleplus
@@ -41,30 +35,30 @@ import appengine_config
 # - datetime.datetime.now is a "built-in/extension" type so I can't set
 # it manually via monkey patch.
 #
-# - injecting a function dependency, ie Poll(now=datetime.datetime.now), worked
+# - injecting a function dependency, ie Scan(now=datetime.datetime.now), worked
 # in webapp 1, which I used in bridgy, like this:
 #
 #   application = webapp.WSGIApplication([
-#     ('/_ah/queue/poll', lambda: Poll(now=lambda: self.now)),
+#     ('/_ah/queue/scan', lambda: Scan(now=lambda: self.now)),
 #     ...
 #
 # However, it fails with this error in webapp2:
 #
 #   File ".../webapp2.py", line 1511, in __call__
 #     return response(environ, start_response)
-#   TypeError: 'Poll' object is not callable
+#   TypeError: 'Scan' object is not callable
 
 NOW_FN = datetime.datetime.now
 
 
-class Poll(webapp2.RequestHandler):
-  """Task handler that fetches and processes new salmon from a single source.
+class Scan(webapp2.RequestHandler):
+  """Task handler that fetches and processes posts from a single source.
 
-  Inserts a propagate task for each salmon that hasn't been seen before.
+  Inserts a propagate task for each post that hasn't been seen before.
 
   Request parameters:
     source_key: string key of source entity
-    last_polled: timestamp, YYYY-MM-DD-HH-MM-SS
+    last_scanned: timestamp, YYYY-MM-DD-HH-MM-SS
   """
 
   TASK_COUNTDOWN = datetime.timedelta(hours=1)
@@ -78,18 +72,18 @@ class Poll(webapp2.RequestHandler):
       logging.warning('Source not found! Dropping task.')
       return
 
-    last_polled = self.request.params['last_polled']
-    if last_polled != source.last_polled.strftime(Source.POLL_TASK_DATETIME_FORMAT):
-      logging.warning('duplicate poll task! deferring to the other task.')
+    last_scanned = self.request.params['last_scanned']
+    if last_scanned != source.last_scanned.strftime(Source.SCAN_TASK_DATETIME_FORMAT):
+      logging.warning('duplicate scan task! deferring to the other task.')
       return
 
-    logging.debug('Polling %s source %s', source.kind(), source.key().name())
+    logging.debug('Scaning %s source %s', source.kind(), source.key().name())
     for vars in source.get_salmon():
       logging.debug('Got salmon %r', vars)
       salmon.Salmon(key_name=vars['id'], vars=json.dumps(vars)).get_or_save()
 
-    source.last_polled = NOW_FN()
-    source.add_poll_task(countdown=self.TASK_COUNTDOWN.seconds)
+    source.last_scanned = NOW_FN()
+    source.add_scan_task(countdown=self.TASK_COUNTDOWN.seconds)
     source.save()
 
 
@@ -176,13 +170,6 @@ class Propagate(webapp2.RequestHandler):
 
 
 application = webapp2.WSGIApplication([
-    ('/_ah/queue/poll', Poll),
+    ('/_ah/queue/scan', Scan),
     ('/_ah/queue/propagate', Propagate),
     ], debug=appengine_config.DEBUG)
-
-def main():
-  run_wsgi_app(application)
-
-
-if __name__ == '__main__':
-  main()

@@ -1,13 +1,10 @@
-application: salmon-unofficial
+application: freedom-io-app 
 version: 1
-threadsafe: false
+threadsafe: true
 api_version: 1
 default_expiration: 1d
 
 runtime: python27
-libraries:
-- name: pycrypto
-  version: "2.3"
 
 handlers:
 
@@ -20,10 +17,6 @@ handlers:
   upload: static/favicon.ico
 
 # dynamic
-- url: /(.well-known/.*|delete)?
-  script: app.py
-  secure: always
-
 - url: /facebook/.*
   script: facebook.py
   login: required
@@ -44,11 +37,11 @@ handlers:
   secure: always
 
 - url: /_ah/queue/.*
-  script: tasks.py
+  script: tasks.application
   login: admin
   
 - url: /.+
-  script: salmon.py
+  script: freedom.py
   secure: always
 
 skip_files:
@@ -57,7 +50,6 @@ skip_files:
 - ^(.*/)?\..*
 - ^(.*/)?.*\.bak$
 # don't need anything in the submodule subdirs, especially since
-# webapp-improved/lib has over 1k files and feedparser/tests has over 2.3k!
-- ^feedparser/(docs|feedparser/tests)/.*
+# webapp-improved/lib has over 1k files!
 - ^google-api-python-client/(docs|samples|tests)/.*
 - ^webutil/webapp-improved/.*/.*

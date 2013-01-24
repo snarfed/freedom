@@ -2,7 +2,7 @@
 """Unit tests for tasks.py.
 """
 
-__author__ = ['Ryan Barrett <salmon@ryanb.org>']
+__author__ = ['Ryan Barrett <freedom@ryanb.org>']
 
 import datetime
 import json
@@ -14,7 +14,7 @@ from fakes import FakeSource
 from models import Source
 from salmon import Salmon
 import tasks
-from tasks import Poll, Propagate
+from tasks import Scan, Propagate
 from webutil import testutil
 from webutil import webapp2
 
@@ -47,41 +47,41 @@ class TaskQueueTest(testutil.HandlerTest):
     self.assertEqual(expected_status, resp.status_int, resp.body)
 
 
-class PollTest(TaskQueueTest):
+class ScanTest(TaskQueueTest):
 
-  post_url = '/_ah/queue/poll'
+  post_url = '/_ah/queue/scan'
 
   def setUp(self):
-    super(PollTest, self).setUp()
+    super(ScanTest, self).setUp()
     self.source = FakeSource.new(self.handler)
     self.source.save()
     self.source.set_salmon([self.salmon_vars])
     self.task_params = {'source_key': self.source.key(),
-                        'last_polled': '1970-01-01-00-00-00'}
+                        'last_scanned': '1970-01-01-00-00-00'}
 
-  def test_poll(self):
-    """A normal poll task."""
+  def test_scan(self):
+    """A normal scan task."""
     self.assertFalse(db.get(self.salmon.key()))
-    self.assertEqual([], self.taskqueue_stub.GetTasks('poll'))
+    self.assertEqual([], self.taskqueue_stub.GetTasks('scan'))
 
     self.post_task()
     self.assertTrue(db.get(self.salmon.key()))
 
     source = db.get(self.source.key())
-    self.assertEqual(self.now, source.last_polled)
+    self.assertEqual(self.now, source.last_scanned)
 
-    tasks = self.taskqueue_stub.GetTasks('poll')
+    tasks = self.taskqueue_stub.GetTasks('scan')
     self.assertEqual(1, len(tasks))
-    self.assertEqual('/_ah/queue/poll', tasks[0]['url'])
+    self.assertEqual('/_ah/queue/scan', tasks[0]['url'])
 
     params = testutil.get_task_params(tasks[0])
     self.assertEqual(str(source.key()),
                      params['source_key'])
-    self.assertEqual(self.now.strftime(Source.POLL_TASK_DATETIME_FORMAT),
-                     params['last_polled'])
+    self.assertEqual(self.now.strftime(Source.SCAN_TASK_DATETIME_FORMAT),
+                     params['last_scanned'])
 
   def test_existing_salmon(self):
-    """Poll should be idempotent and not touch existing salmon entities.
+    """Scan should be idempotent and not touch existing salmon entities.
     """
     self.salmon.status = 'complete'
     self.salmon.save()
@@ -90,10 +90,10 @@ class PollTest(TaskQueueTest):
     self.assertTrue(db.get(self.salmon.key()))
     self.assertEqual('complete', db.get(self.salmon.key()).status)
 
-  def test_wrong_last_polled(self):
-    """If the source doesn't have our last polled value, we should quit.
+  def test_wrong_last_scanned(self):
+    """If the source doesn't have our last scanned value, we should quit.
     """
-    self.source.last_polled = datetime.datetime.utcfromtimestamp(3)
+    self.source.last_scanned = datetime.datetime.utcfromtimestamp(3)
     self.source.save()
     self.post_task()
     self.assert_(db.get(self.salmon.key()) is None)
@@ -103,7 +103,7 @@ class PollTest(TaskQueueTest):
     """
     self.source.delete()
     self.post_task()
-    self.assertEqual([], self.taskqueue_stub.GetTasks('poll'))
+    self.assertEqual([], self.taskqueue_stub.GetTasks('scan'))
 
 
 class PropagateTest(TaskQueueTest):

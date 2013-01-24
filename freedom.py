@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """Publishes a Facebook, Twitter, or Google+ posts to WordPress via XML-RPC.
 
-STATE: implementing render
+STATE: implementing preprocess_googleplus
 
 http://freedom.io/
 http://snarfed.org/freedom
@@ -104,6 +104,18 @@ def preprocess_twitter(post):
   Returns: the processed post dict, or None if it should not be posted
   """
   # TODO
+  return post
+
+
+def preprocess_googleplus(activity):
+  """Tweaks a Google+ activity before rendering and posting.
+
+  Args:
+    activity: dict, decoded JSON Google+ activity.
+
+  Returns: the processed activity dict, or None if it should not be posted
+  """
+  # TODO: use get_salmon from ~/src/salmon-unofficial/googleplus.py
   return post
 
 
