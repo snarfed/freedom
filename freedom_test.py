@@ -6,6 +6,9 @@ __author__ = ['Ryan Barrett <freedom@ryanb.org>']
 
 import datetime
 import mox
+import StringIO
+import urllib2
+import xmlrpclib
 
 from webutil import testutil
 import freedom
@@ -36,29 +39,27 @@ class Test(testutil.HandlerTest):
         'post_status': 'publish',
         'post_title': 'Anyone in or near Paris right now',
         'post_content': """\
-Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There are a couple more chefs I'm hoping to check out before I head south, and I also have a seat free for an incredible reservation Tues night.
-<p class="fb-tags">
-</p>
-<p class="fb-via">
-<a href="http://facebook.com/212038/posts/157673343490">via Facebook</a>
-</p>""",
+<p>Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There are a couple more chefs I'm hoping to check out before I head south, and I also have a seat free for an incredible reservation Tues night.</p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/157673343490">via Facebook</a></p>""",
         'post_date': datetime.datetime(2009, 10, 15, 22, 05, 49),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-        'id': '212038_157673343490',
-        'from': {
-          'name': 'Ryan Barrett',
-          'id': '212038'
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
           },
-        'message': "Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There are a couple more chefs I'm hoping to check out before I head south, and I also have a seat free for an incredible reservation Tues night.",
-        'type': 'status',
-        'status_type': 'mobile_status_update',
-        'created_time': '2009-10-15T22:05:49+0000',
-        'updated_time': '2009-10-16T03:50:08+0000'
+        'content': "Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There are a couple more chefs I'm hoping to check out before I head south, and I also have a seat free for an incredible reservation Tues night.",
+        'id': 'tag:facebook.com,2012:212038_157673343490',
+        'objectType': 'note',
+        'published': '2009-10-15T22:05:49+0000',
+        'updated': '2009-10-16T03:50:08+0000',
+        'url': 'http://facebook.com/212038/posts/157673343490',
         })
 
   def test_comments(self):
@@ -69,13 +70,8 @@ Anyone in or near Paris right now? Interested in dinner any time Sun-Wed? There 
         'post_type': 'post',
         'post_status': 'publish',
         'post_title': 'New blog post',
-        'post_content': """\
-New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9HrEU5</a>
-<p class="fb-tags">
-</p>
-<p class="fb-via">
-<a href="http://facebook.com/212038/posts/124561947600007">via Facebook</a>
-</p>""",
+        'post_content': """<p>New blog post: World Series 2010</p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/124561947600007">via Facebook</a></p>""",
         'post_date': datetime.datetime(2010, 10, 28, 00, 04, 03),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
@@ -84,44 +80,45 @@ New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9H
       self.assert_equals_cmp({
         'author': 'Ron Ald',
         'author_url': 'http://facebook.com/513046677',
-        'content': """New blog: You're awesome.
-<cite><a href="http://facebook.com/212038/posts/124561947600007?comment_id=672819">via Facebook</a></cite>""",
+        'content': """<p>New blog: You're awesome.</p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/124561947600007?comment_id=672819">via Facebook</a></p>""",
         })).AndReturn(comment_id)
     self.xmlrpc.proxy.wp.editComment(BLOG_ID, 'my_user', 'my_passwd', comment_id, {
         'date_created_gmt': datetime.datetime(2010, 10, 28, 0, 23, 4),
         })
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-      'id': '212038_124561947600007',
-      'from': {
-        'name': 'Ryan Barrett',
-        'id': '212038'
-      },
-      'message': 'New blog post: World Series 2010 http://bit.ly/9HrEU5',
-      'type': 'status',
-      'status_type': 'mobile_status_update',
-      'application': {
-        'name': 'foo bar',
-        'id': '131732509879'
-      },
-      'created_time': '2010-10-28T00:04:03+0000',
-      'updated_time': '2010-10-28T00:23:04+0000',
-      'comments': {
-        'data': [
-          {
-            'id': '212038_124561947600007_672819',
-            'from': {
-              'name': 'Ron Ald',
-              'id': '513046677'
-            },
-            'message': "New blog: You're awesome.",
-            'created_time': '2010-10-28T00:23:04+0000'
-          }
-        ],
-        'count': 1
-      }
-    })
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'content': 'New blog post: World Series 2010',
+        'id': 'tag:facebook.com,2012:212038_124561947600007',
+        'objectType': 'note',
+        'published': '2010-10-28T00:04:03+0000',
+        'replies': {
+          'items': [{
+              'author': {
+                'displayName': 'Ron Ald',
+                'id': 'tag:facebook.com,2012:513046677',
+                'image': {'url': 'http://graph.facebook.com/513046677/picture?type=large'},
+                'url': 'http://facebook.com/513046677',
+                },
+              'content': "New blog: You're awesome.",
+              'id': 'tag:facebook.com,2012:212038_124561947600007_672819',
+              'inReplyTo': {'id': 'tag:facebook.com,2012:212038_124561947600007'},
+              'objectType': 'comment',
+              'published': '2010-10-28T00:23:04+0000',
+              'url': 'http://facebook.com/212038/posts/124561947600007?comment_id=672819',
+              }],
+          'totalItems': 1,
+          },
+        'updated': '2010-10-28T00:23:04+0000',
+        'url': 'http://facebook.com/212038/posts/124561947600007',
+        })
 
   def test_link(self):
     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
@@ -130,39 +127,40 @@ New blog post: World Series 2010 <a href="http://bit.ly/9HrEU5">http://bit.ly/9H
         'post_status': 'publish',
         'post_title': 'Paul Graham inspired me to put this at the top of my todo list',
         'post_content': """\
-Paul Graham inspired me to put this at the top of my todo list, to force myself to think about it regularly.
-<p><a class="fb-link" alt="The Top of My Todo List" href="http://paulgraham.com/todo.html">
-<img class="fb-link-thumbnail" src="http://my/image.jpg" />
-<span class="fb-link-name">The Top of My Todo List</span>
-<span class="fb-link-summary">paulgraham.com</span>
+<p>Paul Graham inspired me to put this at the top of my todo list, to force myself to think about it regularly.</p>
+<p><a class="freedom-link" alt="The Top of My Todo List" href="http://paulgraham.com/todo.html">
+<img class="freedom-link-thumbnail" src="http://my/image.jpg" />
+<span class="freedom-link-name">The Top of My Todo List</span>
+<span class="freedom-link-summary">paulgraham.com</span>
 </p>
-<p class="fb-tags">
-</p>
-<p class="fb-via">
-<a href="http://facebook.com/212038/posts/407323642625868">via Facebook</a>
-</p>""",
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/407323642625868">via Facebook</a></p>""",
         'post_date': datetime.datetime(2012, 4, 22, 17, 8, 4),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-      'id': '212038_407323642625868',
-      'from': {
-        'name': 'Ryan Barrett',
-        'id': '212038'
-      },
-      'message': 'Paul Graham inspired me to put this at the top of my todo list, to force myself to think about it regularly.',
-      'picture': 'http://my/image.jpg',
-      'link': 'http://paulgraham.com/todo.html',
-      'name': 'The Top of My Todo List',
-      'caption': 'paulgraham.com',
-      'type': 'link',
-      'status_type': 'shared_story',
-      'created_time': '2012-04-22T17:08:04+0000',
-      'updated_time': '2012-04-22T17:08:04+0000',
-    })
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'displayName': 'The Top of My Todo List',
+            'objectType': 'article',
+            'summary': 'paulgraham.com',
+            'url': 'http://paulgraham.com/todo.html',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'content': 'Paul Graham inspired me to put this at the top of my todo list, to force myself to think about it regularly.',
+        'id': 'tag:facebook.com,2012:212038_407323642625868',
+        'image': {'url': 'http://my/image.jpg'},
+        'objectType': 'article',
+        'published': '2012-04-22T17:08:04+0000',
+        'updated': '2012-04-22T17:08:04+0000',
+        'url': 'http://facebook.com/212038/posts/407323642625868',
+        })
 
   def test_location(self):
     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
@@ -171,59 +169,50 @@ Paul Graham inspired me to put this at the top of my todo list, to force myself 
         'post_status': 'publish',
         'post_title': 'Clothes shopping',
         'post_content': """\
-Clothes shopping. Grudgingly.
-<p><a class="fb-link" alt="name: Macys San Francisco Union Square" href="https://www.facebook.com/MacysSanFranciscoUnionSquareCA">
-<img class="fb-link-thumbnail" src="https://macys/picture.jpg" />
-<span class="fb-link-name">name: Macys San Francisco Union Square</span>
-<span class="fb-link-summary">Ryan checked in at Macys San Francisco Union Square.</span>
+<p>Clothes shopping. Grudgingly.</p>
+<p><a class="freedom-link" alt="name: Macys San Francisco Union Square" href="https://www.facebook.com/MacysSanFranciscoUnionSquareCA">
+<img class="freedom-link-thumbnail" src="https://macys/picture.jpg" />
+<span class="freedom-link-name">name: Macys San Francisco Union Square</span>
+<span class="freedom-link-summary">Ryan checked in at Macys San Francisco Union Square.</span>
 </p>
-<p class="fb-tags">
-<span class="fb-checkin"> at <a href="http://facebook.com/161569013868015">place: Macys San Francisco Union Square</a></span>
-</p>
-<p class="fb-via">
-<a href="http://facebook.com/212038/posts/10100397129690713">via Facebook</a>
-</p>""",
+<p class="freedom-checkin"> at <a href="http://facebook.com/161569013868015">place: Macys San Francisco Union Square</a></p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/10100397129690713">via Facebook</a></p>""",
         'post_date': datetime.datetime(2012, 10, 14, 19, 41, 30),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-      'id': '212038_10100397129690713',
-      'from': {
-        'name': 'Ryan Barrett',
-        'id': '212038'
-      },
-      'message': 'Clothes shopping. Grudgingly.',
-      'picture': 'https://macys/picture.jpg',
-      'link': 'https://www.facebook.com/MacysSanFranciscoUnionSquareCA',
-      'name': 'name: Macys San Francisco Union Square',
-      'caption': 'Ryan checked in at Macys San Francisco Union Square.',
-      'description': 'We thank you for your enthusiasm for Macys!',
-      'icon': 'https://www.facebook.com/images/icons/place.png',
-      'place': {
-        'id': '161569013868015',
-        'name': 'place: Macys San Francisco Union Square',
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'content': 'We thank you for your enthusiasm for Macys!',
+            'displayName': 'name: Macys San Francisco Union Square',
+            'objectType': 'article',
+            'summary': 'Ryan checked in at Macys San Francisco Union Square.',
+            'url': 'https://www.facebook.com/MacysSanFranciscoUnionSquareCA',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'content': 'Clothes shopping. Grudgingly.',
+        'id': 'tag:facebook.com,2012:212038_10100397129690713',
+        'image': {'url': 'https://macys/picture.jpg'},
         'location': {
-          'street': '170 OFARRELL ST',
-          'city': 'San Francisco',
-          'state': 'CA',
-          'country': 'United States',
-          'zip': '94102',
+          'displayName': 'place: Macys San Francisco Union Square',
+          'id': '161569013868015',
           'latitude': 37.787235321839,
-          'longitude': -122.40721521845
-        }
-      },
-      'type': 'checkin',
-      'application': {
-        'name': 'Facebook for Android',
-        'namespace': 'fbandroid',
-        'id': '350685531728'
-      },
-      'created_time': '2012-10-14T19:41:30+0000',
-      'updated_time': '2012-10-15T03:59:48+0000'
-    })
+          'longitude': -122.40721521845,
+          'position': '+37.787235-122.407215/',
+          'url': 'http://facebook.com/161569013868015',
+          },
+        'objectType': 'note',
+        'published': '2012-10-14T19:41:30+0000',
+        'updated': '2012-10-15T03:59:48+0000',
+        'url': 'http://facebook.com/212038/posts/10100397129690713',
+        })
 
   def test_linkify_content(self):
     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
@@ -232,40 +221,40 @@ Clothes shopping. Grudgingly.
         'post_status': 'publish',
         'post_title': 'Oz Noy trio is killing it',
         'post_content': """\
-Oz Noy trio is killing it.
-<a href="http://oznoy.com/">http://oznoy.com/</a>
-<p><a class="fb-link" alt="The 55 Bar" href="https://www.facebook.com/pages/The-55-Bar/136676259709087">
-<img class="fb-link-thumbnail" src="https://fbcdn-profile-a.akamaihd.net/static-ak/rsrc.php/v2/y5/r/j258ei8TIHu.png" />
-<span class="fb-link-name">The 55 Bar</span>
-<span class="fb-link-summary">Ryan checked in at The 55 Bar.</span>
+<p>Oz Noy trio is killing it.
+<a href="http://oznoy.com/">http://oznoy.com/</a></p>
+<p><a class="freedom-link" alt="The 55 Bar" href="https://www.facebook.com/pages/The-55-Bar/136676259709087">
+<img class="freedom-link-thumbnail" src="https://fbcdn-profile-a.akamaihd.net/abc.png" />
+<span class="freedom-link-name">The 55 Bar</span>
+<span class="freedom-link-summary">Ryan checked in at The 55 Bar.</span>
 </p>
-<p class="fb-tags">
-</p>
-<p class="fb-via">
-<a href="http://facebook.com/212038/posts/10100242451207633">via Facebook</a>
-</p>""",
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/10100242451207633">via Facebook</a></p>""",
         'post_date': datetime.datetime(2012, 4, 26, 4, 29, 56),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-        'id': '212038_10100242451207633',
-        'from': {
-          'name': 'Ryan Barrett',
-          'id': '212038'
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'displayName': 'The 55 Bar',
+            'objectType': 'article',
+            'summary': 'Ryan checked in at The 55 Bar.',
+            'url': 'https://www.facebook.com/pages/The-55-Bar/136676259709087',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
           },
-        'message': 'Oz Noy trio is killing it.\nhttp://oznoy.com/',
-        'picture': 'https://fbcdn-profile-a.akamaihd.net/static-ak/rsrc.php/v2/y5/r/j258ei8TIHu.png',
-        'link': 'https://www.facebook.com/pages/The-55-Bar/136676259709087',
-        'name': 'The 55 Bar',
-        'caption': 'Ryan checked in at The 55 Bar.',
-        'icon': 'https://www.facebook.com/images/icons/place.png',
-        'type': 'status',
-        'status_type': 'mobile_status_update',
-        'created_time': '2012-04-26T04:29:56+0000',
-        'updated_time': '2012-04-26T04:29:56+0000'
+        'content': 'Oz Noy trio is killing it.\nhttp://oznoy.com/',
+        'id': 'tag:facebook.com,2012:212038_10100242451207633',
+        'image': {'url': 'https://fbcdn-profile-a.akamaihd.net/abc.png'},
+        'objectType': 'note',
+        'published': '2012-04-26T04:29:56+0000',
+        'updated': '2012-04-26T04:29:56+0000',
+        'url': 'http://facebook.com/212038/posts/10100242451207633',
         })
 
   def test_mention_and_with_tags(self):
@@ -275,136 +264,279 @@ Oz Noy trio is killing it.
         'post_status': 'publish',
         'post_title': "discovered in the far back of a dusty cabinet at my parents' house",
         'post_content': """\
-discovered in the far back of a dusty cabinet at my parents' house. been sitting there for over five years. evidently the camus 140th anniversary is somewhat special, and damn good.
+<p>discovered in the far back of a dusty cabinet at my parents' house. been sitting there for over five years. evidently the camus 140th anniversary is somewhat special, and damn good.
 
-cc <a class="fb-mention" href="http://facebook.com/profile.php?id=13307262">Daniel Meredith</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=9374038">Warren Ahner</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=201963">Steve Garrity</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=1506309346">Devon LaHar</a>, <a class="fb-mention" href="http://facebook.com/profile.php?id=100000224384191">Gina Rossman</a>
-<p><a class="fb-link" alt="https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1" href="https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1">
-<img class="fb-link-thumbnail" src="{}" />
-<span class="fb-link-name">https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1</span>
+cc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262">Daniel Meredith</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=9374038">Warren Ahner</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=201963">Steve Garrity</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=1506309346">Devon LaHar</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=100000224384191">Gina Rossman</a></p>
+<p><a class="freedom-link" alt="https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1" href="https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1">
+<img class="freedom-link-thumbnail" src="" />
+<span class="freedom-link-name">https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1</span>
 </p>
-<p class="fb-tags">
-<span class="fb-with"> with <a href="http://facebook.com/100000224384191">Gina Rossman</a>, <a href="http://facebook.com/1506309346">Devon LaHar</a>, <a href="http://facebook.com/201963">Steve Garrity</a>, <a href="http://facebook.com/9374038">Warren Ahner</a></span></p>
-<p class="fb-via">
-<a href="http://facebook.com/212038/posts/998665783603">via Facebook</a>
-</p>""",
+<p class="freedom-tags"><a href="http://facebook.com/100000224384191">Gina Rossman</a>, <a href="http://facebook.com/1506309346">Devon LaHar</a>, <a href="http://facebook.com/201963">Steve Garrity</a>, <a href="http://facebook.com/9374038">Warren Ahner</a></p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/998665783603">via Facebook</a></p>""",
         'post_date': datetime.datetime(2011, 12, 28, 3, 36, 46),
         'comment_status': 'open',
         'terms_names': {'post_tag': freedom.POST_TAGS},
         }))
 
     self.mox.ReplayAll()
-    freedom.post_to_wordpress(self.xmlrpc, {
-      'id': '212038_998665783603',
-      'from': {
-        'name': 'Ryan Barrett',
-        'id': '212038'
-      },
-      'to': {
-        'data': [
-          {'name': 'Warren Ahner', 'id': '9374038'},
-          {'name': 'Steve Garrity', 'id': '201963'},
-          {'name': 'Devon LaHar', 'id': '1506309346'},
-          {'name': 'Gina Rossman', 'id': '100000224384191'}
-        ]
-      },
-      'message': "discovered in the far back of a dusty cabinet at my parents' house. been sitting there for over five years. evidently the camus 140th anniversary is somewhat special, and damn good.\n\ncc Daniel Meredith, Warren Ahner, Steve Garrity, Devon LaHar, Gina Rossman",
-      'message_tags': {
-        '186': [
-          {
-            'id': '13307262',
-            'name': 'Daniel Meredith',
-            'type': 'user',
-            'offset': 186,
-            'length': 15
-          }
-        ],
-        '203': [
-          {
-            'id': '9374038',
-            'name': 'Warren Ahner',
-            'type': 'user',
-            'offset': 203,
-            'length': 12
-          }
-        ],
-        '217': [
-          {
-            'id': '201963',
-            'name': 'Steve Garrity',
-            'type': 'user',
-            'offset': 217,
-            'length': 13
-          }
-        ],
-        '232': [
-          {
-            'id': '1506309346',
-            'name': 'Devon LaHar',
-            'type': 'user',
-            'offset': 232,
-            'length': 11
-          }
-        ],
-        '245': [
-          {
-            'id': '100000224384191',
-            'name': 'Gina Rossman',
-            'type': 'user',
-            'offset': 245,
-            'length': 12
-          }
-        ]
-      },
-      'link': 'https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1',
-      'icon': 'https://s-static.ak.facebook.com/rsrc.php/v2/yz/r/StEh3RhPvjk.gif',
-      'type': 'status',
-      'status_type': 'shared_story',
-      'object_id': '998665748673',
-      'created_time': '2011-12-28T03:36:46+0000',
-      'updated_time': '2011-12-28T03:36:46+0000',
-    })
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'objectType': 'article',
+            'url': 'https://www.facebook.com/photo.php?fbid=998665748673&set=a.995695740593.2393090.212038&type=1&relevant_count=1',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'content': 'discovered in the far back of a dusty cabinet at my parents\' house. been sitting there for over five years. evidently the camus 140th anniversary is somewhat special, and damn good.\n\ncc <a class="freedom-mention" href="http://facebook.com/profile.php?id=13307262">Daniel Meredith</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=9374038">Warren Ahner</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=201963">Steve Garrity</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=1506309346">Devon LaHar</a>, <a class="freedom-mention" href="http://facebook.com/profile.php?id=100000224384191">Gina Rossman</a>',
+        'id': 'tag:facebook.com,2012:212038_998665783603',
+        'objectType': 'note',
+        'published': '2011-12-28T03:36:46+0000',
+        'tags': [{
+            'displayName': 'Gina Rossman',
+            'id': 'tag:facebook.com,2012:100000224384191',
+            'objectType': 'person',
+            'url': 'http://facebook.com/100000224384191',
+            }, {
+            'displayName': 'Devon LaHar',
+            'id': 'tag:facebook.com,2012:1506309346',
+            'objectType': 'person',
+            'url': 'http://facebook.com/1506309346',
+            }, {
+            'displayName': 'Steve Garrity',
+            'id': 'tag:facebook.com,2012:201963',
+            'objectType': 'person',
+            'url': 'http://facebook.com/201963',
+            }, {
+            'displayName': 'Warren Ahner',
+            'id': 'tag:facebook.com,2012:9374038',
+            'objectType': 'person',
+            'url': 'http://facebook.com/9374038',
+            }],
+        'updated': '2011-12-28T03:36:46+0000',
+        'url': 'http://facebook.com/212038/posts/998665783603'})
 
+  def test_picture(self):
+    # fake and mock the urllib2.urlopen response
+    class Info(object):
+      def gettype(self):
+        return 'my mime type'
+    image_resp = StringIO.StringIO('my data')
+    image_resp.info = lambda: Info()
 
-#   def test_picture(self):
+    self.mox.StubOutWithMock(urllib2, 'urlopen')
+    urllib2.urlopen('https://its/my_photo.jpg').AndReturn(image_resp)
+
+    self.xmlrpc.proxy.wp.uploadFile(BLOG_ID, 'my_user', 'my_passwd', {
+        'name': 'my_photo.jpg',
+        'type': 'my mime type',
+        'bits': xmlrpclib.Binary('my data'),
+        }).AndReturn({
+        'file': 'returned_filename',
+        'url': 'http://returned/filename',
+        })
+
+    self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
+      self.assert_equals_cmp({
+        'post_type': 'post',
+        'post_status': 'publish',
+        # TODO: better title
+        'post_title': '2012-11-06',
+        'post_content': """\
+<p><a class="freedom-link" alt="https://www.facebook.com/photo_album" href="https://www.facebook.com/photo_album">
+<img class="freedom-link-thumbnail" src="https://its/my_photo.jpg" />
+<span class="freedom-link-name">https://www.facebook.com/photo_album</span>
+</p>
+
+<p><a class="shutter" href="http://returned/filename">
+  <img class="alignnone shadow" title="returned_filename" src="http://returned/filename" width='500' />
+</a></p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a></p>""",
+        "post_date": datetime.datetime(2012, 11, 6, 5, 50, 21),
+        "comment_status": "open",
+        "terms_names": {"post_tag": freedom.POST_TAGS},
+        }))
+
+    self.mox.ReplayAll()
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'objectType': 'article',
+            'url': 'https://www.facebook.com/photo_album',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'id': 'tag:facebook.com,2012:212038_10100419011125143',
+        'image': {'url': 'https://its/my_photo.jpg'},
+        'objectType': 'photo',
+        'published': '2012-11-06T05:50:21+0000',
+        'updated': '2012-11-07T03:39:11+0000',
+        'url': 'http://facebook.com/212038/posts/10100419011125143',
+        })
+
+#   def test_multiple_pictures(self):
 #     self.xmlrpc.proxy.wp.uploadFile(BLOG_ID, 'my_user', 'my_passwd',
-#                                  ...)
+#                                  'xyz')
 #     self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
 #       self.assert_equals_cmp({
 #         'post_type': 'post',
 #         'post_status': 'publish',
 #         'post_title': 'Clothes shopping',
-#         'post_content': '''\
+#         'post_content': """\
 # Clothes shopping. Grudgingly.
-# <p><a class='fb-link' alt='We thank you for your enthusiasm for Macys!' href='https://www.facebook.com/MacysSanFranciscoUnionSquareCA'>
-# <img class='fb-link-thumbnail' src='https://macys/picture.jpg' />
-# <span class='fb-link-name'>https://www.facebook.com/MacysSanFranciscoUnionSquareCA</span>
-# <span class='fb-link-summary'>Ryan checked in at Macys San Francisco Union Square.</span>
+# <p><a class="freedom-link" alt="We thank you for your enthusiasm for Macys!" href="https://www.facebook.com/MacysSanFranciscoUnionSquareCA">
+# <img class="freedom-link-thumbnail" src="https://macys/picture.jpg" />
+# <span class="freedom-link-name">https://www.facebook.com/MacysSanFranciscoUnionSquareCA</span>
+# <span class="freedom-link-summary">Ryan checked in at Macys San Francisco Union Square.</span>
 # </p>
-# <p class='fb-tags'>
-# <span class='fb-checkin'> at <a href='http://facebook.com/161569013868015'>Macys San Francisco Union Square</a></span>
+# <p class="freedom-tags">
+# <span class="freedom-location"> at <a href="http://facebook.com/161569013868015">Macys San Francisco Union Square</a></span>
 # </p>
-# <p class='fb-via'>
-# <a href='http://facebook.com/212038/posts/10100419011125143'>via Facebook</a>
-# </p>''',
+# <p class="freedom-via"><a href="http://facebook.com/212038/posts/10100419011125143">via Facebook</a></p>""",
 #         'post_date': datetime.datetime(2012, 10, 14, 19, 41, 30),
 #         'comment_status': 'open',
 #         'terms_names': {'post_tag': freedom.POST_TAGS},
 #         }))
 
 #     self.mox.ReplayAll()
-#     freedom.post_to_wordpress(self.xmlrpc,{
-#       'id': '212038_10100419011125143',
-#       'from': {
-#         'name': 'Ryan Barrett',
-#         'id': '212038'
-#       },
-#       'story': 'Ryan Barrett added a new photo.',
-#       'picture': 'https://my/photo.jpg',
-#       'link': 'https://www.facebook.com/photo.php?fbid=10100419011060273&set=a.10100419008909583.2449717.212038&type=1&relevant_count=1',
-#       'icon': 'https://s-static.ak.facebook.com/rsrc.php/v2/yz/r/StEh3RhPvjk.gif',
-#       'type': 'photo',
-#       'status_type': 'added_photos',
-#       'object_id': '10100419011060273',
-#       'created_time': '2012-11-06T05:50:21+0000',
-#       'updated_time': '2012-11-07T03:39:11+0000'
-#     })
+#     freedom.object_to_wordpress(self.xmlrpc, {
+#         'attachments': [{
+#             'objectType': 'article',
+#             'url': 'https://www.facebook.com/photo.php?fbid=10100411291505323&set=pcb.10100411291744843&type=1&relevant_count=2',
+#             }],
+#         'author': {
+#           'displayName': 'Ryan Barrett',
+#           'id': 'tag:facebook.com,2012:212038',
+#           'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+#           'url': 'http://facebook.com/212038',
+#           },
+#         'content': 'pumpkin carving!',
+#         'id': 'tag:facebook.com,2012:212038_10100411291744843',
+#         'image': {'url': 'https://fbcdn-photos-a.akamaihd.net/def.jpg'},
+#         'objectType': 'photo',
+#         'published': '2012-10-29T02:42:15+0000',
+#         'updated': '2012-10-29T05:43:45+0000',
+#         'url': 'http://facebook.com/212038/posts/10100411291744843',
+#         })
+
+  def test_location_without_content(self):
+    self.xmlrpc.proxy.wp.newPost(BLOG_ID, 'my_user', 'my_passwd',
+      self.assert_equals_cmp({
+        'post_type': 'post',
+        'post_status': 'publish',
+        'post_title': 'At Nihon Whisky Lounge',
+        'post_content': """\
+<p><a class="freedom-link" alt="Nihon Whisky Lounge" href="https://www.facebook.com/Nihon-Whisky-Lounge">
+<img class="freedom-link-thumbnail" src="https://fbexternal-a.akamaihd.net/nihon.png" />
+<span class="freedom-link-name">Nihon Whisky Lounge</span>
+<span class="freedom-link-summary">Ryan checked in at Nihon Whisky Lounge.</span>
+</p>
+<p class="freedom-checkin"> at <a href="http://facebook.com/116112148406150">Nihon Whisky Lounge</a></p>
+<p class="freedom-via"><a href="http://facebook.com/212038/posts/725208279633">via Facebook</a></p>""",
+        'post_date': datetime.datetime(2010, 12, 5, 5, 0, 18),
+        'comment_status': 'open',
+        'terms_names': {'post_tag': freedom.POST_TAGS},
+        }))
+
+    self.mox.ReplayAll()
+    freedom.object_to_wordpress(self.xmlrpc, {
+        'attachments': [{
+            'displayName': 'Nihon Whisky Lounge',
+            'objectType': 'article',
+            'summary': 'Ryan checked in at Nihon Whisky Lounge.',
+            'url': 'https://www.facebook.com/Nihon-Whisky-Lounge',
+            }],
+        'author': {
+          'displayName': 'Ryan Barrett',
+          'id': 'tag:facebook.com,2012:212038',
+          'image': {'url': 'http://graph.facebook.com/212038/picture?type=large'},
+          'url': 'http://facebook.com/212038',
+          },
+        'id': 'tag:facebook.com,2012:212038_725208279633',
+        'image': {'url': 'https://fbexternal-a.akamaihd.net/nihon.png'},
+        'location': {
+          'displayName': 'Nihon Whisky Lounge',
+          'id': '116112148406150',
+          'latitude': 37.768653743517,
+          'longitude': -122.41549045767,
+          'position': '+37.768654-122.415490/',
+          'url': 'http://facebook.com/116112148406150',
+          },
+        'objectType': 'note',
+        'published': '2010-12-05T05:00:18+0000',
+        'updated': '2010-12-05T05:00:18+0000',
+        'url': 'http://facebook.com/212038/posts/725208279633',
+        })
+
+
+  def test_render_no_tags(self):
+    self.assert_equals("""<p>abc</p>
+<p class="freedom-via"><a href="">via Facebook</a></p>""",
+                       freedom.render({'content': 'abc'}))
+
+    self.assert_equals("""<p>abc</p>
+<p class="freedom-via"><a href="li/nk">via Facebook</a></p>""",
+                       freedom.render({'content': 'abc', 'tags': [], 'url': 'li/nk'}))
+
+  def test_render(self):
+    self.assert_equals(
+      """\
+<p>X <a class="freedom-mention" href="a/bc">@abc</a> def <a class="freedom-mention" href="g/hi">#ghi</a> Y</p>
+<p><a class="freedom-link" alt="m/no" href="m/no">
+<img class="freedom-link-thumbnail" src="" />
+<span class="freedom-link-name">m/no</span>
+</p>
+<p class="freedom-hashtags"><a href="j/kl">#jkl</a></p>
+<p class="freedom-tags"><a href="ryan/b">Ryan B</a>, <a href="d/ef">def</a>, <a href="ev/ent">my event</a></p>
+<p class="freedom-via"><a href="">via Facebook</a></p>""",
+      freedom.render({
+          'content': 'X @abc def #ghi Y',
+          'tags': [{
+              'id': 'ryanb',
+              'objectType': 'person',
+              'url': 'ryan/b',
+              'displayName': 'Ryan B',
+              }, {
+              'id': 'ghi',
+              'objectType': 'hashtag',
+              'url': 'g/hi',
+              'startIndex': 11,
+              'length': 4,
+              }, {
+              'id': 'abc',
+              'objectType': 'person',
+              'url': 'a/bc',
+              'startIndex': 2,
+              'length': 4,
+              }, {
+              'id': 'ryanb',
+              'objectType': 'event',
+              'url': 'should be overridden by Ryan B',
+              }, {
+              'id': 'my_event',
+              'displayName': 'my event',
+              'objectType': 'event',
+              'url': 'ev/ent',
+              # TODO: should hashtags and articles be attachments or tags?
+              }, {
+              'objectType': 'hashtag',
+              'displayName': '#jkl',
+              'url': 'j/kl',
+              }, {
+              'objectType': 'foo',
+              'url': 'd/ef',
+              'displayName': 'def',
+              }, {
+              'objectType': 'article',
+              'url': 'm/no',
+              }],
+          }))
+
+  def test_preprocess_googleplus(self):
+    pass
+

@@ -1,6 +1,8 @@
 #!/usr/bin/python
 """Publishes a Facebook, Twitter, or Google+ posts to WordPress via XML-RPC.
 
+STATE: implementing preprocess_googleplus
+
 http://freedom.io/
 http://snarfed.org/freedom
 
@@ -42,6 +44,7 @@ import urlparse
 import xmlrpclib
 
 from activitystreams import facebook
+from webutil import util
 
 
 # Publish these post types.
@@ -55,7 +58,7 @@ STATUS_TYPES = ('shared_story', 'added_photos', 'mobile_status_update')
 APPLICATION_BLACKLIST = ('Likes', 'Links', 'twitterfeed')
 
 # Attach these tags to the WordPress posts.
-POST_TAGS = ['from-facebook']
+POST_TAGS = ['freedom.io']
 
 # Uploaded photos are scaled to this width in pixels. They're also linked to
 # the full size image.
@@ -65,100 +68,221 @@ SCALED_IMG_WIDTH = 500
 PAUSE_SEC = 1
 
 
-def post_to_wordpress(xmlrpc, post):
-  """Translates a post and posts it to WordPress.
+# TODO: test
+def preprocess_facebook(post):
+  """Tweaks a Facebook post before converting to ActivityStreams
 
   Args:
-    post: dict, a decoded JSON post
-    xmlrpc: XmlRpc object
+    post: dict, decoded JSON Facebook post. (This dict will be modified!)
+
+  Returns: the processed post dict, or None if it should not be posted
   """
-  obj = facebook.Facebook(None).post_to_object(post)
-  if not obj:
-    return
-
-  date = parse_iso8601(obj['published'])
-
-  content = obj.get('content', '')
-  first_phrase = re.search('^[^,.:;?!]+', content)
-  location = obj.get('location')
-  image = obj.get('image', {}).get('url', {})
-
-  # title
-  if first_phrase:
-    title = first_phrase.group()
-  elif location and 'name' in location:
-    title = 'At ' + location['name']
-  else:
-    title = date.date().isoformat()
-
-  # check whether we should publish this
-  ptype = post.get('type')
-  stype = post.get('status_type')
   app = post.get('application', {}).get('name')
-  if ((ptype not in POST_TYPES and stype not in STATUS_TYPES) or
+  if ((post.get('type') not in POST_TYPES and
+       post.get('status_type') not in STATUS_TYPES) or
       (app and app in APPLICATION_BLACKLIST) or
       # posts with 'story' aren't explicit posts. they're friend approvals or
       # likes or photo tags or comments on other people's posts.
       'story' in obj):
-    logging.info('Skipping %s' % title)
-    return
+    logging.info('Skipping %s', post.get('id'))
+    return None
+
+  # for photos, get a larger version
+  image = post.get('image', '')
+  if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
+    post['image'] = image[:-6] + '_o.jpg'
+
+  return post
+
+
+def preprocess_twitter(post):
+  """Tweaks a Twitter tweet before converting to ActivityStreams
+
+  Args:
+    post: dict, decoded JSON tweet. (This dict will be modified!)
+
+  Returns: the processed post dict, or None if it should not be posted
+  """
+  # TODO
+  return post
+
+
+def preprocess_googleplus(activity):
+  """Tweaks a Google+ activity before rendering and posting.
+
+  Args:
+    activity: dict, decoded JSON Google+ activity.
+
+  Returns: the processed activity dict, or None if it should not be posted
+  """
+  # TODO: use get_salmon from ~/src/salmon-unofficial/googleplus.py
+  return post
+
+
+def render(obj, uploaded_image=None):
+  """Adds HTML links to content based on tags and returns the result.
+
+  Also adds links to embedded URLs.
+
+  TODO: convert newlines to <br> or <p>
+
+  For example:
+
+  Args:
+    obj: dict, a decoded JSON ActivityStreams object
+    uploaded_image: optional wp.uploadFile response dict with 'file' and 'url' items
+
+  Returns: string, the content field in obj with the tags in the tags field
+    converted to links if they have startIndex and length, otherwise added to
+    the end.
+  """
+  content = obj.get('content', '')
+
+  # extract tags. preserve order but de-dupe, ie don't include a tag more than
+  # once.
+  seen_ids = set()
+  mentions = []
+  tags = {}  # maps string objectType to list of tag objects
+  for t in obj.get('tags', []):
+    id = t.get('id')
+    if id and id in seen_ids:
+      continue
+    seen_ids.add(id)
+
+    if 'startIndex' in t and 'length' in t:
+      mentions.append(t)
+    else:
+      tags.setdefault(t['objectType'], []).append(t)
+
+  # linkify embedded mention tags inside content.
+  if mentions:
+    mentions.sort(key=lambda t: t['startIndex'])
+    last_end = 0
+    orig = content
+    content = ''
+    for tag in mentions:
+      start = tag['startIndex']
+      end = start + tag['length']
+      content += orig[last_end:start]
+      content += '<a class="freedom-mention" href="%s">%s</a>' % (
+        tag['url'], orig[start:end])
+      last_end = end
+
+    content += orig[last_end:]
+
+  # linkify embedded links. ignore the "mention" tags that we added ourselves.
+  if content:
+    content = '<p>' + util.linkify(content) + '</p>\n'
 
   # attachments, e.g. links (aka articles)
-  for att in obj.get('attachments', []):
-    if att.get('objectType') == 'article':
-      url = att.get('url')
-      name = att.get('displayName', url)
-      content += """
-<p><a class="fb-link" alt="%s" href="%s">
-<img class="fb-link-thumbnail" src="%s" />
-<span class="fb-link-name">%s</span>
+  # TODO: non-article attachments
+  for link in obj.get('attachments', []) + tags.pop('article', []):
+    if link.get('objectType') == 'article':
+      url = link.get('url')
+      name = link.get('displayName', url)
+      image = link.get('image', {}).get('url')
+      if not image:
+        image = obj.get('image', {}).get('url', '')
+
+      content += """\
+<p><a class="freedom-link" alt="%s" href="%s">
+<img class="freedom-link-thumbnail" src="%s" />
+<span class="freedom-link-name">%s</span>
 """ % (name, url, image, name)
-      summary = att.get('summary')
+      summary = link.get('summary')
       if summary:
-        content += '<span class="fb-link-summary">%s</span>\n' % summary
-      content += '</p>'
+        content += '<span class="freedom-link-summary">%s</span>\n' % summary
+      content += '</p>\n'
 
-  # tags (checkin, people, etc)
-  content += '\n<p class="fb-tags">\n'
-
-  # location
+  # checkin
+  location = obj.get('location')
   if location:
-    content += '<span class="fb-checkin"> at <a href="%s">%s</a></span>\n' % (
+    content += '<p class="freedom-checkin"> at <a href="%s">%s</a></p>\n' % (
       location['url'], location['displayName'])
 
-  # tags
-  tags = obj.get('tags')
-  if tags:
-    content += '<span class="fb-with"> with '
-    content += ', '.join('<a href="%s">%s</a>' % (t['url'], t['displayName'])
-                         for t in tags)
-    content += '</span>'
-
-  content += '</p>\n'
+  # other tags
+  content += render_tags(tags.pop('hashtag', []), 'freedom-hashtags')
+  content += render_tags(sum(tags.values(), []), 'freedom-tags')
 
   # photo
-  # TODO: i added this heuristic to activitystreams/facebook.py as an
-  # attachment. drop it here and use it there.
-  if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
-    orig_image = image[:-6] + '_o.jpg'
-    logging.info('Downloading %s', orig_image)
-    resp = urllib2.urlopen(orig_image)
-    filename = os.path.basename(urlparse.urlparse(orig_image).path)
-    mime_type = resp.info().gettype()
 
-    logging.info('Uploading as %s', mime_type)
-    resp = xmlrpc.upload_file(filename, mime_type, resp.read())
+  # # TODO: put this file uploading code somewhere
+  # if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
+  #   orig_image = image[:-6] + '_o.jpg'
+  #   logging.info('Downloading %s', orig_image)
+  #   resp = urllib2.urlopen(orig_image)
+  #   filename = os.path.basename(urlparse.urlparse(orig_image).path)
+  #   mime_type = resp.info().gettype()
+
+  #   logging.info('Uploading as %s', mime_type)
+  #   resp = xmlrpc.upload_file(filename, mime_type, resp.read())
+
+  # add image
+  if uploaded_image:
     content += ("""
 <p><a class="shutter" href="%(url)s">
   <img class="alignnone shadow" title="%(file)s" src="%(url)s" width='""" +
       str(SCALED_IMG_WIDTH) + """' />
 </a></p>
-""") % resp
+""") % uploaded_image
 
   # "via Facebook"
-  content += """<p class="fb-via">
-<a href="%s">via Facebook</a>
-</p>""" % obj.get('url')
+  # TODO: parameterize source name
+  url = obj.get('url', '')
+  content += '<p class="freedom-via"><a href="%s">via Facebook</a></p>' % url
+
+  return content
+
+
+def render_tags(tags, css_class):
+  """Returns an HTML string with links to the given tag objects.
+
+  Args:
+    tags: decoded JSON ActivityStreams objects.
+    css_class: CSS class for span to enclose tags in
+  """
+  if tags:
+    return ('<p class="%s">' % css_class +
+            ', '.join('<a href="%s">%s</a>' % (t.get('url'), t.get('displayName'))
+                      for t in tags) +
+            '</p>\n')
+  else:
+    return ''
+
+
+def object_to_wordpress(xmlrpc, obj):
+  """Translates an object and posts it to WordPress.
+
+  Args:
+    obj: dict, a decoded JSON ActivityStreams object
+    xmlrpc: XmlRpc object
+  """
+  date = parse_iso8601(obj['published'])
+  location = obj.get('location')
+  image = obj.get('image', {}).get('url', '')
+
+  # extract title
+  title = obj.get('title')
+  if not title:
+    first_phrase = re.search('^[^,.:;?!]+', obj.get('content', ''))
+    if first_phrase:
+      title = first_phrase.group()
+    elif location and 'displayName' in location:
+      title = 'At ' + location['displayName']
+    else:
+      title = date.date().isoformat()
+
+  # photo
+  upload = None
+  if obj.get('objectType') == 'photo' and image:
+    logging.info('Downloading %s', image)
+    resp = urllib2.urlopen(image)
+    filename = os.path.basename(urlparse.urlparse(image).path)
+    mime_type = resp.info().gettype()
+    logging.info('Uploading as %s', mime_type)
+    upload = xmlrpc.upload_file(filename, mime_type, resp.read())
+
+  content = render(obj, upload)
 
   # post!
   logging.info('Publishing %s', title)
@@ -185,12 +309,10 @@ def post_to_wordpress(xmlrpc, post):
       continue
     logging.info('Publishing reply "%s"', content[:30])
 
-    content += ('\n<cite><a href="%s">via Facebook</a></cite>' % reply.get('url'))
-
     comment_id = xmlrpc.new_comment(post_id, {
           'author': author.get('displayName', 'Anonymous'),
           'author_url': author.get('url'),
-          'content': content,
+          'content': render(reply),
           })
 
     published = reply.get('published')
@@ -219,7 +341,9 @@ def main(args):
   xmlrpc = XmlRpc(url, 0, user, passwd, verbose=False)
 
   for post in posts:
-    post_to_wordpress(xmlrpc, post)
+    obj = facebook.Facebook(None).post_to_object(post)
+    if obj:
+      object_to_wordpress(xmlrpc, obj)
 
   print 'Done.'
 
