@@ -137,6 +137,8 @@ def post_to_wordpress(xmlrpc, post):
   content += '</p>\n'
 
   # photo
+  # TODO: i added this heuristic to activitystreams/facebook.py as an
+  # attachment. drop it here and use it there.
   if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
     orig_image = image[:-6] + '_o.jpg'
     logging.info('Downloading %s', orig_image)
