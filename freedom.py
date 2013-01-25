@@ -309,11 +309,17 @@ def object_to_wordpress(xmlrpc, obj):
       continue
     logging.info('Publishing reply "%s"', content[:30])
 
-    comment_id = xmlrpc.new_comment(post_id, {
+    try:
+      comment_id = xmlrpc.new_comment(post_id, {
           'author': author.get('displayName', 'Anonymous'),
           'author_url': author.get('url'),
           'content': render(reply),
           })
+    except xmlrpclib.Fault, e:
+      # if it's a dupe, we're done!
+      if not (e.faultCode == 500 and
+              e.faultString.startswith('Duplicate comment detected')):
+        raise
 
     published = reply.get('published')
     if published:
@@ -443,7 +449,7 @@ class XmlRpc(object):
     return self.proxy.wp.uploadFile(
       self.blog_id, self.username, self.password,
       {'name': filename, 'type': mime_type, 'bits': xmlrpclib.Binary(data)})
- 
+
 
 if __name__ == '__main__':
   main(sys.argv)

@@ -27,16 +27,13 @@ class TaskQueueTest(testutil.HandlerTest):
   Attributes:
     task_params: the query parameters passed in the task POST request
     post_url: the URL for post_task() to post to
-    now: the datetime to be returned by datetime.now()
     salmon: a test data Salmon
   """
   task_params = None
   post_url = None
-  now = datetime.datetime.now()
 
   def setUp(self):
     super(TaskQueueTest, self).setUp()
-    tasks.NOW_FN = lambda: self.now
     self.salmon_vars = {'id': 'tag:foo'}
     self.salmon = Salmon(key_name='tag:foo', vars=json.dumps(self.salmon_vars))
 

@@ -13,42 +13,14 @@ from webob import exc
 
 # need to import model class definitions since scan creates and saves entities.
 import facebook
-from models import Source
 import googleplus
-import salmon
 import twitter
 from webutil import webapp2
 
 from google.appengine.ext import db
 from google.appengine.api import taskqueue
-from google.appengine.ext.webapp.util import run_wsgi_app
 
 import appengine_config
-
-
-# Unit tests use NOW_FN (below) to inject a fake for datetime.datetime.now. Lots
-# of other techniques for this failed:
-#
-# - mox can only expect a mocked call exactly N times or at least once, zero or
-# more times, which is what this needs.
-#
-# - datetime.datetime.now is a "built-in/extension" type so I can't set
-# it manually via monkey patch.
-#
-# - injecting a function dependency, ie Scan(now=datetime.datetime.now), worked
-# in webapp 1, which I used in bridgy, like this:
-#
-#   application = webapp.WSGIApplication([
-#     ('/_ah/queue/scan', lambda: Scan(now=lambda: self.now)),
-#     ...
-#
-# However, it fails with this error in webapp2:
-#
-#   File ".../webapp2.py", line 1511, in __call__
-#     return response(environ, start_response)
-#   TypeError: 'Scan' object is not callable
-
-NOW_FN = datetime.datetime.now
 
 
 class Scan(webapp2.RequestHandler):
@@ -58,10 +30,7 @@ class Scan(webapp2.RequestHandler):
 
   Request parameters:
     source_key: string key of source entity
-    last_scanned: timestamp, YYYY-MM-DD-HH-MM-SS
   """
-
-  TASK_COUNTDOWN = datetime.timedelta(hours=1)
 
   def post(self):
     logging.debug('Params: %s', self.request.params)
@@ -72,26 +41,20 @@ class Scan(webapp2.RequestHandler):
       logging.warning('Source not found! Dropping task.')
       return
 
-    last_scanned = self.request.params['last_scanned']
-    if last_scanned != source.last_scanned.strftime(Source.SCAN_TASK_DATETIME_FORMAT):
-      logging.warning('duplicate scan task! deferring to the other task.')
-      return
+    logging.debug('Scanning %s source %s', source.kind(), source.key().name())
+    for post in source.get_more_posts():
+      # this will add a propagate task if the post is new to us
+      post.Post(key_name=vars['id'], vars=json.dumps(vars)).get_or_save()
 
-    logging.debug('Scaning %s source %s', source.kind(), source.key().name())
-    for vars in source.get_salmon():
-      logging.debug('Got salmon %r', vars)
-      salmon.Salmon(key_name=vars['id'], vars=json.dumps(vars)).get_or_save()
-
-    source.last_scanned = NOW_FN()
     source.add_scan_task(countdown=self.TASK_COUNTDOWN.seconds)
     source.save()
 
 
 class Propagate(webapp2.RequestHandler):
-  """Task handler that propagates a single salmon.
+  """Task handler that propagates a single post.
 
   Request parameters:
-    salmon_key: string key of salmon entity
+    post_key: string key of post entity
   """
 
   # request deadline (10m) plus some padding
@@ -101,72 +64,72 @@ class Propagate(webapp2.RequestHandler):
     logging.debug('Params: %s', self.request.params)
 
     try:
-      salmon = self.lease_salmon()
-      if salmon:
-        salmon.send_slap()
-        self.complete_salmon()
+      post = self.lease_post()
+      if post:
+        post.send_slap()
+        self.complete_post()
     except Exception, e:
       logging.exception('Propagate task failed')
       if not isinstance(e, exc.HTTPConflict):
-        self.release_salmon()
+        self.release_post()
       raise
 
   @db.transactional
-  def lease_salmon(self):
-    """Attempts to acquire and lease the salmon entity.
+  def lease_post(self):
+    """Attempts to acquire and lease the post entity.
 
-    Returns the Salmon on success, otherwise None.
+    Returns the Post on success, otherwise None.
 
-    TODO: unify with complete_salmon
+    TODO: unify with complete_post
     """
-    salmon = db.get(self.request.params['salmon_key'])
+    post = db.get(self.request.params['post_key'])
 
-    if salmon is None:
-      raise exc.HTTPExpectationFailed('no salmon entity!')
-    elif salmon.status == 'complete':
+    if post is None:
+      raise exc.HTTPExpectationFailed('no post entity!')
+    elif post.status == 'complete':
       # let this response return 200 and finish
-      logging.warning('duplicate task already propagated salmon')
-    elif salmon.status == 'processing' and NOW_FN() < salmon.leased_until:
+      logging.warning('duplicate task already propagated post')
+    elif post.status == 'processing' and NOW_FN() < post.leased_until:
       # return error code, but don't raise an exception because we don't want
       # the exception handler in post() to catch it and try to release the lease.
       raise exc.HTTPConflict('duplicate task is currently processing!')
     else:
-      assert salmon.status in ('new', 'processing')
-      salmon.status = 'processing'
-      salmon.leased_until = NOW_FN() + self.LEASE_LENGTH
-      salmon.save()
-      return salmon
+      assert post.status in ('new', 'processing')
+      post.status = 'processing'
+      post.leased_until = NOW_FN() + self.LEASE_LENGTH
+      post.save()
+      return post
 
   @db.transactional
-  def complete_salmon(self):
-    """Attempts to mark the salmon entity completed.
+  def complete_post(self):
+    """Attempts to mark the post entity completed.
 
     Returns True on success, False otherwise.
     """
-    salmon = db.get(self.request.params['salmon_key'])
+    post = db.get(self.request.params['post_key'])
 
-    if salmon is None:
-      raise exc.HTTPExpectationFailed('salmon entity disappeared!')
-    elif salmon.status == 'complete':
+    if post is None:
+      raise exc.HTTPExpectationFailed('post entity disappeared!')
+    elif post.status == 'complete':
       # let this response return 200 and finish
-      logging.warning('salmon stolen and finished. did my lease expire?')
+      logging.warning('post stolen and finished. did my lease expire?')
       return
-    elif salmon.status == 'new':
-      raise exc.HTTPExpectationFailed('salmon went backward from processing to new!')
+    elif post.status == 'new':
+      raise exc.HTTPExpectationFailed('post went backward from processing to new!')
 
-    assert salmon.status == 'processing'
-    salmon.status = 'complete'
-    salmon.save()
+    assert post.status == 'processing'
+    post.status = 'complete'
+    post.save()
 
   @db.transactional
-  def release_salmon(self):
-    """Attempts to unlease the salmon entity.
+  def release_post(self):
+    """Attempts to unlease the post entity.
     """
-    salmon = db.get(self.request.params['salmon_key'])
-    if salmon and salmon.status == 'processing':
-      salmon.status = 'new'
-      salmon.leased_until = None
-      salmon.save()
+    post = db.get(self.request.params['post_key'])
+    if post and post.status == 'processing':
+      post.status = 'new'
+      post.leased_until = None
+      post.save()
 
 
 application = webapp2.WSGIApplication([
