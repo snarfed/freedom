@@ -106,8 +106,15 @@ class Destination(util.KeyNameModel):
     raise NotImplementedError()
 
 
-class Post(util.KeyNameModel):
-  """A post to be propagated to a single destination.
+class Migration(db.Model):
+  """A migration from a single source to a single destination."""
+  STATUSES = ('new', 'processing', 'complete')
+  source = db.ReferenceProperty(reference_class=Source, required=True)
+  dest = db.ReferenceProperty(reference_class=Destination, required=True)
+
+
+class Migratable(util.KeyNameModel):
+  """A post or comment to be migrated.
 
   Key name is 'POST_ID DEST KEY_NAME', e.g.
   '123_456_789 Wordpress http://snarfed.org/w/_0'. The post id, destination
@@ -115,6 +122,11 @@ class Post(util.KeyNameModel):
 
   I could use the two serialized keys instead, but this makes manual inspection
   and debugging easier.
+  """
+  STATE: here, and migration above
+
+class Post(util.KeyNameModel):
+  """A post to be propagated to a single destination.
   """
 
   STATUSES = ('new', 'processing', 'complete')
@@ -149,9 +161,8 @@ class Post(util.KeyNameModel):
       assert ' ' not in part
     key_name = '%s %s %s' % parts
 
-  def send_slap(self):
-    util.urlfetch(post.endpoint, method='POST', payload=self.envelope(),
-                  headers={'Content-Type': 'application/magic-envelope+xml'})
+  def propagate(self):
+    pass
 
 
 class Comment(util.KeyNameModel):

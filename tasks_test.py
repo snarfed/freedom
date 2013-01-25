@@ -12,7 +12,6 @@ from webob import exc
 
 from fakes import FakeSource
 from models import Source
-from salmon import Salmon
 import tasks
 from tasks import Scan, Propagate
 from webutil import testutil
@@ -114,16 +113,16 @@ class PropagateTest(TaskQueueTest):
 
     # can't use StubOutWithMock because i want to check the value of self, not
     # args, which evidently mox can't do. :/ i get this error when I try to do
-    # it with self.mox.StubOutWithMock(Salmon, 'send_slap'):
+    # it with self.mox.StubOutWithMock(Salmon, 'propagate'):
     #
     #   UnexpectedMethodCallError: Unexpected method call: __call__() -> None.
     #     Expecting: __call__(<function <lambda> at 0x363b758>) -> None
     self.slaps = []
-    self.orig_send_slap = Salmon.send_slap
-    Salmon.send_slap = lambda salmon: self.slaps.append(salmon)
+    self.orig_propagate = Salmon.propagate
+    Salmon.propagate = lambda salmon: self.slaps.append(salmon)
 
   def tearDown(self):
-    Salmon.send_slap = self.orig_send_slap
+    Salmon.propagate = self.orig_propagate
     super(PropagateTest, self).tearDown()
 
   def assert_salmon_is(self, status, leased_until=False):
@@ -180,7 +179,7 @@ class PropagateTest(TaskQueueTest):
     """If any part raises an exception, the lease should be released."""
     methods = [(Propagate, 'lease_salmon'),
                (Propagate, 'complete_salmon'),
-               (Salmon, 'send_slap'),
+               (Salmon, 'propagate'),
                ]
 
     for cls, method in methods:

@@ -23,6 +23,31 @@ from google.appengine.api import taskqueue
 import appengine_config
 
 
+# Unit tests use NOW_FN (below) to inject a fake for datetime.datetime.now. Lots
+# of other techniques for this failed:
+#
+# - mox can only expect a mocked call exactly N times or at least once, zero or
+# more times, which is what this needs.
+#
+# - datetime.datetime.now is a "built-in/extension" type so I can't set
+# it manually via monkey patch.
+#
+# - injecting a function dependency, ie Poll(now=datetime.datetime.now), worked
+# in webapp 1, which I used in bridgy, like this:
+#
+#   application = webapp.WSGIApplication([
+#     ('/_ah/queue/poll', lambda: Poll(now=lambda: self.now)),
+#     ...
+#
+# However, it fails with this error in webapp2:
+#
+#   File ".../webapp2.py", line 1511, in __call__
+#     return response(environ, start_response)
+#   TypeError: 'Poll' object is not callable
+
+NOW_FN = datetime.datetime.now
+
+
 class Scan(webapp2.RequestHandler):
   """Task handler that fetches and processes posts from a single source.
 
@@ -51,10 +76,10 @@ class Scan(webapp2.RequestHandler):
 
 
 class Propagate(webapp2.RequestHandler):
-  """Task handler that propagates a single post.
+  """Task handler that propagates a single post or comment.
 
   Request parameters:
-    post_key: string key of post entity
+    key: string key of post or comment
   """
 
   # request deadline (10m) plus some padding
@@ -64,72 +89,69 @@ class Propagate(webapp2.RequestHandler):
     logging.debug('Params: %s', self.request.params)
 
     try:
-      post = self.lease_post()
-      if post:
-        post.send_slap()
-        self.complete_post()
+      entity = self.lease()
+      if entity:
+        entity.propagate()
+        self.complete()
     except Exception, e:
       logging.exception('Propagate task failed')
       if not isinstance(e, exc.HTTPConflict):
-        self.release_post()
+        self.release()
       raise
 
   @db.transactional
-  def lease_post(self):
-    """Attempts to acquire and lease the post entity.
+  def lease(self):
+    """Attempts to acquire and lease the post or comment entity.
 
-    Returns the Post on success, otherwise None.
-
-    TODO: unify with complete_post
+    Returns the entity on success, otherwise None.
     """
-    post = db.get(self.request.params['post_key'])
+    entity = db.get(self.request.params['key'])
 
-    if post is None:
-      raise exc.HTTPExpectationFailed('no post entity!')
-    elif post.status == 'complete':
+    if entity is None:
+      raise exc.HTTPExpectationFailed('entity not found!')
+    elif entity.status == 'complete':
       # let this response return 200 and finish
-      logging.warning('duplicate task already propagated post')
-    elif post.status == 'processing' and NOW_FN() < post.leased_until:
+      logging.warning('duplicate task already propagated post/comment')
+    elif entity.status == 'processing' and NOW_FN() < entity.leased_until:
       # return error code, but don't raise an exception because we don't want
       # the exception handler in post() to catch it and try to release the lease.
       raise exc.HTTPConflict('duplicate task is currently processing!')
     else:
-      assert post.status in ('new', 'processing')
-      post.status = 'processing'
-      post.leased_until = NOW_FN() + self.LEASE_LENGTH
-      post.save()
-      return post
+      assert entity.status in ('new', 'processing')
+      entity.status = 'processing'
+      entity.leased_until = NOW_FN() + self.LEASE_LENGTH
+      entity.save()
+      return entity
 
   @db.transactional
-  def complete_post(self):
-    """Attempts to mark the post entity completed.
-
-    Returns True on success, False otherwise.
+  def complete(self):
+    """Attempts to mark the post or comment entity completed.
     """
-    post = db.get(self.request.params['post_key'])
+    entity = db.get(self.request.params['key'])
 
-    if post is None:
-      raise exc.HTTPExpectationFailed('post entity disappeared!')
-    elif post.status == 'complete':
+    if entity is None:
+      raise exc.HTTPExpectationFailed('entity disappeared!')
+    elif entity.status == 'complete':
       # let this response return 200 and finish
-      logging.warning('post stolen and finished. did my lease expire?')
+      logging.warning('post/comment stolen and finished. did my lease expire?')
       return
-    elif post.status == 'new':
-      raise exc.HTTPExpectationFailed('post went backward from processing to new!')
+    elif entity.status == 'new':
+      raise exc.HTTPExpectationFailed(
+        'post/comment went backward from processing to new!')
 
-    assert post.status == 'processing'
-    post.status = 'complete'
-    post.save()
+    assert entity.status == 'processing'
+    entity.status = 'complete'
+    entity.save()
 
   @db.transactional
-  def release_post(self):
-    """Attempts to unlease the post entity.
+  def release(self):
+    """Attempts to release the lease on the post or comment entity.
     """
-    post = db.get(self.request.params['post_key'])
-    if post and post.status == 'processing':
-      post.status = 'new'
-      post.leased_until = None
-      post.save()
+    entity = db.get(self.request.params['key'])
+    if entity and entity.status == 'processing':
+      entity.status = 'new'
+      entity.leased_until = None
+      entity.save()
 
 
 application = webapp2.WSGIApplication([
