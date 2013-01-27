@@ -48,31 +48,49 @@ import appengine_config
 NOW_FN = datetime.datetime.now
 
 
-class Scan(webapp2.RequestHandler):
-  """Task handler that fetches and processes posts from a single source.
+# time between propagate requests for posts and comments from a single source
+PROPAGATE_DELAY = 
 
-  Inserts a propagate task for each post that hasn't been seen before.
+
+class Scan(webapp2.RequestHandler):
+  """Task handler that fetches and processes posts for a single migration.
+
+  Inserts a propagate task for each new post for this migration.
 
   Request parameters:
-    source_key: string key of source entity
+    migration: string key name of Migration entity
+    scan_url: source API URL to use to scan. usually includes the current paging
+      parameters.
   """
 
   def post(self):
     logging.debug('Params: %s', self.request.params)
 
-    key = self.request.params['source_key']
-    source = db.get(key)
-    if not source:
-      logging.warning('Source not found! Dropping task.')
+    migration = models.Migration.get_by_key_name(self.request.params['migration'])
+    if not migration:
+      logging.warning('Missing migration! Dropping task.')
       return
 
-    logging.debug('Scanning %s source %s', source.kind(), source.key().name())
-    for post in source.get_more_posts():
-      # this will add a propagate task if the post is new to us
-      post.Post(key_name=vars['id'], vars=json.dumps(vars)).get_or_save()
+    source = Migration.source()
+    dest = Migration.dest()
 
-    source.add_scan_task(countdown=self.TASK_COUNTDOWN.seconds)
-    source.save()
+    scan_url = self.request.params['scan_url']
+    logging.info('Scanning %s', scan_url)
+    posts, next_scan_url = source.get_posts(dest)
+    for post in posts:
+      # this will add a propagate task if the post is new (to us)
+      post.get_or_save()
+      logging.info('Saved post %s', post.key().name())
+
+    # add next scan task
+    if next_scan_url:
+      new_params = dict(self.request.params)
+      new_params['scan_url'] = next_scan_url
+      logging.info('Adding next scan task at %s', next_scan_url)
+      taskqueue.add(queue_name='scan', params=new_params,
+                    countdown=len(posts) * PROPAGATE_DELAY)
+    else:
+      logging.info('No next page, done scanning!')
 
 
 class Propagate(webapp2.RequestHandler):

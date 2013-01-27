@@ -24,8 +24,7 @@ class Source(util.KeyNameModel):
   """
 
   # POLL_TASK_DATETIME_FORMAT = '%Y-%m-%d-%H-%M-%S'
-  EPOCH = datetime.datetime.utcfromtimestamp(0)
-
+  # EPOCH = datetime.datetime.utcfromtimestamp(0)
   # last_polled = db.DateTimeProperty(default=EPOCH)
 
   # human-readable name for this source type. subclasses should override.
@@ -73,18 +72,20 @@ class Source(util.KeyNameModel):
     """
     raise NotImplementedError()
 
-  def get_freedom(self):
-    """Returns a list of Freedom template var dicts for posts and their comments.
+  def get_posts(self, scan_url):
+    """Fetches a page of Post instances using the given source API URL.
 
     To be implemented by subclasses.
+
+    Args:
+      scan_url: string, the source API URL to fetch the current page of posts
+
+    Returns:
+      (posts, next_scan_url). post is a sequence of Migratable instances,
+      next_scan_url is a string, the source API URL to use for the next scan, or
+      None if there are no more posts.
     """
     raise NotImplementedError()
-
-  def add_scan_task(self, **kwargs):
-    """Adds a scan task for this source."""
-    taskqueue.add(queue_name='scan',
-                  params={'source_key': str(self.key())},
-                  **kwargs)
 
 
 class Destination(util.KeyNameModel):
@@ -106,27 +107,44 @@ class Destination(util.KeyNameModel):
     raise NotImplementedError()
 
 
-class Migration(db.Model):
-  """A migration from a single source to a single destination."""
+class Migration(util.KeyNameModel):
+  """A migration from a single source to a single destination.
+
+  Key name is 'SOURCE_KIND SOURCE_KEY_NAME DEST_KIND DEST_KEY_NAME', e.g.
+  'Facebook 123 Wordpress http://snarfed.org/w/_0'. The four components must not
+  have spaces in them.
+  """
+
   STATUSES = ('new', 'processing', 'complete')
-  source = db.ReferenceProperty(reference_class=Source, required=True)
-  dest = db.ReferenceProperty(reference_class=Destination, required=True)
+  status = db.StringProperty(choices=STATUSES, default='new')
+
+  @staticmethod
+  def make_key_name(source, dest):
+    """Returns the key name to use for a given source and destination.
+
+    Args:
+      source: Source instance
+      dest: Destination instance
+    """
+    parts = (source.kind(), source.key_name(), dest.kind(), dest.key_name())
+    for part in parts:
+      assert ' ' not in part
+    return '%s %s %s %s' % parts
+
+  def source(self):
+    """Returns this Migration's source."""
+    return db.get(Key.from_path(*self.key().name().split(' ')[0:]))
+
+  def dest(self):
+    """Returns this Migration's destination."""
+    return db.get(Key.from_path(*self.key().name().split(' ')[2:]))
 
 
 class Migratable(util.KeyNameModel):
   """A post or comment to be migrated.
 
-  Key name is 'POST_ID DEST KEY_NAME', e.g.
-  '123_456_789 Wordpress http://snarfed.org/w/_0'. The post id, destination
-  kind, and destination key name must not have spaces.
-
-  I could use the two serialized keys instead, but this makes manual inspection
-  and debugging easier.
-  """
-  STATE: here, and migration above
-
-class Post(util.KeyNameModel):
-  """A post to be propagated to a single destination.
+  The key name is 'ID MIGRATION_KEY_NAME', where ID is the source-specific id of
+  the post or comment and must not have spaces in it.
   """
 
   STATUSES = ('new', 'processing', 'complete')
@@ -136,68 +154,54 @@ class Post(util.KeyNameModel):
   # JSON data for this post from the source social network's API.
   data = db.StringProperty()
 
+  @staticmethod
+  def __init__(self, *args, **kwargs):
+    """Sets key_name if id and migration positional args are provided.
+
+    Args:
+      id: string migratable id
+      migration: Migration
+    """
+    if len(args) == 2:
+      assert 'key_name' not in kwargs
+      kwargs['key_name'] = make_key_name(*args)
+    super(Migratable, self).__init__(**kwargs)
+
+  def propagate(self):
+    """Propagates this post or comment to its destination.
+
+    To be implemented by subclasses.
+    """
+    raise NotImplementedError()
+
   @db.transactional
   def get_or_save(self):
     existing = db.get(self.key())
+    key_str = '%s %s' % (self.kind(), self.key().name())
     if existing:
-      logging.debug('Deferring to existing post %s.', existing.key().name())
+      logging.debug('Deferring to existing entity: %s', key_str)
       return existing
 
-    logging.debug('New post to propagate: %s' % self.key().name())
-    taskqueue.add(queue_name='propagate', params={'post_key': str(self.key())})
+    logging.debug('New entity to propagate: %s', key_str)
+    taskqueue.add(queue_name='propagate', params={'key': str(self.key())})
     self.save()
     return self
 
   @staticmethod
-  def make_key_name(id, dest):
+  def make_key_name(id, migration):
     """Returns the key name to use for a given post id and destination.
 
     Args:
       id: string, post id
       dest: Destination instance
     """
-    parts = (id, dest.kind(), dest.key_name())
-    for part in parts:
-      assert ' ' not in part
-    key_name = '%s %s %s' % parts
+    assert ' ' not in id
+    return '%s %s' % (id, migration.key().name())
 
-  def propagate(self):
-    pass
+  def id(self):
+    """Returns this post's id."""
+    return self.key().name().split(' ')[0]
 
-
-class Comment(util.KeyNameModel):
-  """A comment to be propagated.
-  """
-  STATUSES = ('new', 'processing', 'complete')
-
-  source = db.ReferenceProperty(reference_class=Source, required=True)
-  dest = db.ReferenceProperty(reference_class=Destination, required=True)
-  source_post_url = db.LinkProperty()
-  source_comment_url = db.LinkProperty()
-  dest_post_url = db.LinkProperty()
-  dest_comment_url = db.LinkProperty()
-  created = db.DateTimeProperty()
-  author_name = db.StringProperty()
-  author_url = db.LinkProperty()
-  content = db.TextProperty()
-
-  status = db.StringProperty(choices=STATUSES, default='new')
-  leased_until = db.DateTimeProperty()
-
-  @db.transactional
-  def get_or_save(self):
-    existing = db.get(self.key())
-    if existing:
-      logging.debug('Deferring to existing comment %s.', existing.key().name())
-      # this might be a nice sanity check, but we'd need to hard code certain
-      # properties (e.g. content) so others (e.g. status) aren't checked.
-      # for prop in self.properties().values():
-      #   new = prop.get_value_for_datastore(self)
-      #   existing = prop.get_value_for_datastore(existing)
-      #   assert new == existing, '%s: new %s, existing %s' % (prop, new, existing)
-      return existing
-
-    logging.debug('New comment to propagate: %s' % self.key().name())
-    taskqueue.add(queue_name='propagate', params={'comment_key': str(self.key())})
-    self.save()
-    return self
+  def dest(self):
+    """Returns the destination for this post's migration."""
+    return db.get(*self.key().name().split(' ')[3:])
