@@ -111,6 +111,7 @@ class AddWordPress(util.Handler):
       self.messages.append(str(e))
     self.redirect('/')
 
+
 class DeleteWordPress(util.Handler):
   def post(self):
     site = WordPress.get_by_key_name(self.request.params['name'])
