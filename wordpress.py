@@ -7,37 +7,46 @@ __author__ = ['Ryan Barrett <freedom@ryanb.org>']
 import logging
 import re
 import xmlrpclib
+import urllib
 
 import appengine_config
 import models
-import util
+from webutil import util
+from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
-from google.appengine.ext import webapp
 
 
 class WordPress(models.Destination):
   """A WordPress blog. Keys are id-based (ie don't have key names).
+
+  The key name is the XML-RPC URL.
+
+  # The key name is 'XML-RPC_URL BLOG_ID USERNAME', e.g. 'http://my.site/ 0 ryan'.
   """
 
   TYPE_NAME = 'WordPress'
 
-  xmlrpc_url = db.StringProperty(required=True)
+  # xmlrpc_url = db.StringProperty(required=True)
   blog_id = db.IntegerProperty(required=True)
   username = db.StringProperty(required=True)
   password = db.StringProperty(required=True)
 
-  # def xmlrpc_url(self):
-  #   """Returns the string XML-RPC URL."""
-  #   return self.key().name().split(' ')[0]
+  def xmlrpc_url(self):
+    """Returns the string XML-RPC URL."""
+    return self.key_name_parts()[0]
 
   # def blog_id(self):
   #   """Returns the integer blog id."""
-  #   return int(self.key().name().split(' ')[1])
+  #   return self.key_name_parts()[1]
 
-  @staticmethod
-  def new(handler):
+  # def username(self):
+  #   """Returns the string username."""
+  #   return self.key_name_parts()[2]
+
+  @classmethod
+  def new(cls, handler):
     """Creates and saves a WordPress entity based on query parameters.
 
     Args:
@@ -49,19 +58,24 @@ class WordPress(models.Destination):
     """
     properties = dict(handler.request.params)
 
-    db.LinkProperty().validate(properties['xmlrpc_url'])
+    xmlrpc_url = properties['xmlrpc_url']
+    db.LinkProperty().validate(xmlrpc_url)
 
-    blog_id = properties.get('blog_id')
-    if blog_id:
-      blog_id = int(blog_id)
-    else:
-      blog_id = 0
-    properties['blog_id'] = blog_id
+    # blog_id = properties['blog_id']
+    # if not blog_id:
+    #   blog_id = '0'
+    if 'blog_id' not in properties:
+      properties['blog_id'] = 0
 
-    assert properties['username']
-    assert properties['password']
+    # username = properties.pop('username')
 
-    return WordPress(**properties)
+    assert 'username' in properties
+    assert 'password' in properties
+
+    # key_name = cls.make_key_name(xmlrpc_url, blog_id, username)
+    # return WordPress.get_or_insert(key_name, **properties)
+
+    return WordPress.get_or_insert(xmlrpc_url, **properties)
 
   def add_comment(self, comment):
     """Posts a comment to this site.
@@ -103,21 +117,23 @@ class WordPress(models.Destination):
 
 
 # TODO: unify with other dests, sources?
-class AddWordPress(util.Handler):
+class AddWordPress(webapp2.RequestHandler):
   def post(self):
-    try:
-      WordPress.create_new(self)
-    except db.BadValueError, e:
-      self.messages.append(str(e))
-    self.redirect('/')
+    # try:
+    #   wp = WordPress.new(self).save()
+    # except db.BadValueError, e:
+    #   # self.messages.append(str(e))
+    #   pass
+    wp = WordPress.new(self)
+    wp.save()
+    self.redirect('/?dest=%s' % urllib.quote(str(wp.key())))
 
 
-class DeleteWordPress(util.Handler):
+class DeleteWordPress(webapp2.RequestHandler):
   def post(self):
-    site = WordPress.get_by_key_name(self.request.params['name'])
+    site = WordPress.get(self.request.params['id'])
     # TODO: remove tasks, etc.
-    msg = 'Deleted %s destination: %s' % (site.type_display_name(),
-                                                site.display_name())
+    msg = 'Deleted %s: %s' % (site.type_display_name(), site.display_name())
     site.delete()
     self.redirect('/?msg=' + msg)
 
@@ -135,8 +151,8 @@ class XmlRpc(object):
   Attributes:
     proxy: xmlrpclib.ServerProxy
     blog_id: integer
-    username: string, username for authentication, may be None
-    password: string, username for authentication, may be None
+    username: string, may be None
+    password: string, may be None
   """
 
   transport = None
@@ -210,8 +226,7 @@ class XmlRpc(object):
       {'name': filename, 'type': mime_type, 'bits': xmlrpclib.Binary(data)})
 
 
-application = webapp.WSGIApplication([
-    ('/wordpress/add', AddWordPress),
-    ('/wordpress/delete', DeleteWordPress),
+application = webapp2.WSGIApplication([
+    ('/wordpress/dest/add', AddWordPress),
+    ('/wordpress/dest/delete', DeleteWordPress),
     ], debug=appengine_config.DEBUG)
-

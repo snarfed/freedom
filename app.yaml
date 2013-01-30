@@ -37,13 +37,17 @@ handlers:
 #   script: oauth2client/appengine.py
 #   secure: always
 
+- url: /(migrate|migration/.*)
+  script: migration.application
+  secure: always
+
 - url: /_ah/queue/.*
   script: tasks.application
   login: admin
   
-# - url: /.+
-#   script: freedom.py
-#   secure: always
+- url: /
+  script: main.application
+  secure: always
 
 skip_files:
 - ^(.*/)?.*\.py[co]

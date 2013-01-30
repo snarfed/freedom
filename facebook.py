@@ -22,7 +22,7 @@ from google.appengine.ext import db
 # facebook api url templates. can't (easily) use urllib.urlencode() because i
 # want to keep the %(...)s placeholders as is and fill them in later in code.
 # TODO: use appengine_config.py for local mockfacebook vs prod facebook
-GET_AUTH_CODE_URL = '&'.join((
+GET_AUTH_CODE_URL = str('&'.join((
     'https://www.facebook.com/dialog/oauth/?'
     'scope=read_stream,offline_access',
     'client_id=%(client_id)s',
@@ -30,9 +30,9 @@ GET_AUTH_CODE_URL = '&'.join((
     'redirect_uri=%(host_url)s/facebook/got_auth_code',
     'response_type=code',
     'state=%(state)s',
-    ))
+    )))
 
-GET_ACCESS_TOKEN_URL = '&'.join((
+GET_ACCESS_TOKEN_URL = str('&'.join((
     'https://graph.facebook.com/oauth/access_token?'
     'client_id=%(client_id)s',
     # redirect_uri here must be the same in the oauth request!
@@ -40,7 +40,7 @@ GET_ACCESS_TOKEN_URL = '&'.join((
     'redirect_uri=%(host_url)s/facebook/got_auth_code',
     'client_secret=%(client_secret)s',
     'code=%(auth_code)s',
-    ))
+    )))
 
 API_USER_URL = 'https://graph.facebook.com/%(id)s?access_token=%(access_token)s'
 API_POSTS_URL = 'https://graph.facebook.com/%(id)s/posts?access_token=%(access_token)s'
@@ -49,7 +49,7 @@ API_POSTS_URL = 'https://graph.facebook.com/%(id)s/posts?access_token=%(access_t
 class Facebook(models.Source):
   """Implements the Facebook source.
 
-  The key name is the user's (or page's, etc.) Facebook ID.
+  The key name is the user's or page's Facebook ID.
   """
 
   DOMAIN = 'facebook.com'
@@ -79,8 +79,8 @@ class Facebook(models.Source):
     me = json.loads(resp)
 
     id = me['id']
-    return Facebook(
-      key_name=id,
+    return Facebook.get_or_insert(
+      id,
       access_token=access_token,
       name=me.get('name'),
       picture='https://graph.facebook.com/%s/picture?type=small' % id,
@@ -119,23 +119,26 @@ class FacebookPost(models.Migratable):
 
 
 class AddFacebook(webapp2.RequestHandler):
-  def get(self):
+  def post(self):
     """Gets an access token for the current user.
 
     Actually just gets the auth code and redirects to /facebook/got_auth_code,
     which makes the next request to get the access token.
     """
-    redirect_uri = '/'
+    # redirect_uri = '/'
+    dest = self.request.get('dest')
+    assert dest
 
     url = GET_AUTH_CODE_URL % {
       'client_id': appengine_config.FACEBOOK_APP_ID,
       # TODO: CSRF protection identifier.
       # http://developers.facebook.com/docs/authentication/
       'host_url': self.request.host_url,
-      'state': self.request.host_url + redirect_uri,
+      # 'state': self.request.host_url + redirect_uri,
       # 'state': urllib.quote(json.dumps({'redirect_uri': redirect_uri})),
+      'state': dest,
       }
-    self.redirect(url)
+    self.redirect(str(url))
 
 
 class GotAuthCode(webapp2.RequestHandler):
@@ -156,11 +159,13 @@ class GotAuthCode(webapp2.RequestHandler):
     logging.debug('access token response: %s' % resp.content)
     params = urlparse.parse_qs(resp.content)
 
-    Facebook.create_new(self, access_token=params['access_token'][0])
-    self.redirect(urllib.unquote(self.request.get('state')))
+    fb = Facebook.new(self, access_token=params['access_token'][0])
+    # self.redirect(urllib.unquote(self.request.get('state')))
+    self.redirect('/?dest=%s&source=%s' % (self.request.get('state'),
+                                           urllib.quote(str(fb.key()))))
 
 
 application = webapp2.WSGIApplication([
-    ('/facebook/add', AddFacebook),
+    ('/facebook/source/add', AddFacebook),
     ('/facebook/got_auth_code', GotAuthCode),
     ], debug=appengine_config.DEBUG)

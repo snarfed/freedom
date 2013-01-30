@@ -18,25 +18,60 @@
 <p>Freedom lets you copy your Facebook, Twitter or Google+ posts to a blog of
 your choice. Seize your freedom!</p>
 
-<div id="dest">
-<form method="post" action="/wordpress/add">
+<hr />
+
+<div {% if dest %} style="background-color: gray" {% endif %}>
+<form method="post" action="/wordpress/dest/add" id="dest">
   <table><tr><td>
-    <!--     <label for="xmlrpc_url">Base URL</label> -->
+    <!--     <label for="url">Base URL</label> -->
     <!--   </td><td> -->
     <!--     <input id="url" name="url" type="text" /> -->
     <!-- </td></tr><tr><td> -->
         <label for="xmlrpc_url">XML-RPC URL</label>
       </td><td>
         <input id="xmlrpc_url" name="xmlrpc_url" type="text" />
+    </td></tr><tr><td>
+        <label for="username">Username</label>
+      </td><td>
+        <input id="username" name="username" type="text" />
+    </td></tr><tr><td>
+        <label for="password">Password</label>
+      </td><td>
+        <input id="password" name="password" type="password" />
+    </td></tr><tr><td>
   </td></tr></table>
   <input type="submit" value="Add WordPress">
 </form>
-
 </div>
 
-<div id="source">
-<form method="post" action="/generate" style="text-align: center">
-<input type="image" alt="Get my feed" src="/static/facebook_.png" />
+<hr />
+
+<div id="sources"
+     {% if source or not dest %} style="background-color: gray" {% endif %}>
+<form method="post" action="/facebook/source/add">
+  <input type="hidden" name="dest" value="{{ dest }}" />
+  <input type="image" alt="Sign in with Facebook" src="/static/facebook_button.png" />
+</form>
+<form method="post" action="/twitter/source/add">
+  <input type="hidden" value="{{ dest }}" />
+  <input type="image" alt="Sign in with Twitter" src="/static/twitter_button.png" />
+</form>
+<form method="post" action="/googleplus/source/add">
+  <input type="hidden" value="{{ dest }}" />
+  <input type="image" alt="Sign in with Google+" src="/static/google_plus_button.png" />
+</form>
+</div>
+
+<hr />
+
+<div id="options"
+  {% if not source or not dest %} style="background-color: gray" {% endif %}>
+Options...
+
+<form method="post" action="/migrate">
+  <input type="hidden" name="source" value="{{ source }}" />
+  <input type="hidden" name="dest" value="{{ dest }}" />
+  <input type="submit" value="Migrate!">
 </form>
 </div>
 

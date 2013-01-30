@@ -17,7 +17,57 @@ from google.appengine.api import taskqueue
 from google.appengine.ext import db
 
 
-class Source(util.KeyNameModel):
+class SpaceKeyNameModel(util.KeyNameModel):
+  """A model class with a key name of multiple strings separated by spaces.
+
+  The component strings themselves must not have spaces in them.
+  """
+
+  def __init__(self, *args, **kwargs):
+    """Sets key_name using the string components in the positional args.
+
+    'key_name' must not be in kwargs.
+    """
+    if args and args[0]:
+      assert 'key_name' not in kwargs
+      kwargs['key_name'] = self.make_key_name(args)
+    super(SpaceKeyNameModel, self).__init__(**kwargs)
+
+  # this doesn't work because it uses the bound class name for the
+  # inner get_or_insert() call as the kind.
+  #
+  # @classmethod
+  # def get_or_insert(cls, *args, **kwargs):
+  #   """Wraps get_or_insert() and constructs a key name from positional args."""
+  #   return .get_or_insert(
+  #       SpaceKeyNameModel.make_key_name(*args), **kwargs)
+
+  @staticmethod
+  def make_key_name(*args):
+    """Makes and returns a key name from the given component strings."""
+    for part in args:
+      assert ' ' not in part
+    return ' '.join(args)
+
+  def key_name_parts(self):
+    """Returns the key name component strings as a list."""
+    return self.key().name().split(' ')
+
+  # @db.transactional
+  # def get_or_save(self):
+  #   existing = db.get(self.key())
+  #   if existing:
+  #     logging.debug('Deferring to existing %s entity: %s',
+  #                   self.kind(), self.key_name())
+  #     return existing
+
+  #   logging.debug('New entity to propagate: %s', key_str)
+  #   taskqueue.add(queue_name='propagate', params={'key': str(self.key())})
+  #   self.save()
+  #   return self
+
+
+class Source(SpaceKeyNameModel):
   """A source to read posts from, e.g. a Facebook profile.
 
   Each concrete source type should subclass this.
@@ -88,7 +138,7 @@ class Source(util.KeyNameModel):
     raise NotImplementedError()
 
 
-class Destination(util.KeyNameModel):
+class Destination(SpaceKeyNameModel):
   """A web site to propagate posts to, e.g. a WordPress blog.
 
   Each concrete destination class should subclass this class.
@@ -107,7 +157,7 @@ class Destination(util.KeyNameModel):
     raise NotImplementedError()
 
 
-class Migration(util.KeyNameModel):
+class Migration(SpaceKeyNameModel):
   """A migration from a single source to a single destination.
 
   Key name is 'SOURCE_KIND SOURCE_KEY_NAME DEST_KIND DEST_KEY_NAME', e.g.
@@ -117,30 +167,20 @@ class Migration(util.KeyNameModel):
 
   STATUSES = ('new', 'processing', 'complete')
   status = db.StringProperty(choices=STATUSES, default='new')
-
-  @staticmethod
-  def make_key_name(source, dest):
-    """Returns the key name to use for a given source and destination.
-
-    Args:
-      source: Source instance
-      dest: Destination instance
-    """
-    parts = (source.kind(), source.key_name(), dest.kind(), dest.key_name())
-    for part in parts:
-      assert ' ' not in part
-    return '%s %s %s %s' % parts
+  id = db.IntegerProperty(required=True)
 
   def source(self):
     """Returns this Migration's source."""
-    return db.get(Key.from_path(*self.key().name().split(' ')[0:]))
+    logging.info('Getting source %s', self.key_name_parts()[:2])
+    return db.get(db.Key.from_path(*self.key_name_parts()[:2]))
 
   def dest(self):
     """Returns this Migration's destination."""
-    return db.get(Key.from_path(*self.key().name().split(' ')[2:]))
+    logging.info('Getting dest %s', self.key_name_parts()[2:])
+    return db.get(db.Key.from_path(*self.key_name_parts()[2:]))
 
 
-class Migratable(util.KeyNameModel):
+class Migratable(SpaceKeyNameModel):
   """A post or comment to be migrated.
 
   The key name is 'ID MIGRATION_KEY_NAME', where ID is the source-specific id of
@@ -153,19 +193,6 @@ class Migratable(util.KeyNameModel):
   leased_until = db.DateTimeProperty()
   # JSON data for this post from the source social network's API.
   data = db.StringProperty()
-
-  @staticmethod
-  def __init__(self, *args, **kwargs):
-    """Sets key_name if id and migration positional args are provided.
-
-    Args:
-      id: string migratable id
-      migration: Migration
-    """
-    if len(args) == 2:
-      assert 'key_name' not in kwargs
-      kwargs['key_name'] = make_key_name(*args)
-    super(Migratable, self).__init__(**kwargs)
 
   def propagate(self):
     """Propagates this post or comment to its destination.
@@ -187,21 +214,10 @@ class Migratable(util.KeyNameModel):
     self.save()
     return self
 
-  @staticmethod
-  def make_key_name(id, migration):
-    """Returns the key name to use for a given post id and destination.
-
-    Args:
-      id: string, post id
-      dest: Destination instance
-    """
-    assert ' ' not in id
-    return '%s %s' % (id, migration.key().name())
-
   def id(self):
     """Returns this post's id."""
-    return self.key().name().split(' ')[0]
+    return self.key_name_parts()[0]
 
   def dest(self):
     """Returns the destination for this post's migration."""
-    return db.get(*self.key().name().split(' ')[3:])
+    return db.get(*self.key_name_parts()[3:])
