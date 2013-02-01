@@ -352,13 +352,3 @@ def main(args):
 
   print 'Done.'
 
-
-def parse_iso8601(str):
-  """Parses an ISO 8601 date/time string and returns a datetime object.
-  """
-  # example: 2012-07-23T05:54:49+0000
-  # remove the time zone offset at the end, then parse
-  return datetime.datetime.strptime(re.sub('[+-][0-9]{4}$', '', str),
-                                    '%Y-%m-%dT%H:%M:%S')
-
-
