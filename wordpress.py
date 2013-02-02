@@ -20,6 +20,7 @@ from google.appengine.ext import db
 # can't 'import activitystreams' or 'import activitystreams as ...' or
 # 'from activitystreams import activitystreams'. all break future importing
 # inside activitystreams. damn symlinks.
+STATE: this is still broken. rename symlink to activitystreams_unofficial?
 from activitystreams.activitystreams import render_html 
 
 
@@ -27,13 +28,10 @@ class WordPress(models.Destination):
   """A WordPress blog. Keys are id-based (ie don't have key names).
 
   The key name is the XML-RPC URL.
-
-  # The key name is 'XML-RPC_URL BLOG_ID USERNAME', e.g. 'http://my.site/ 0 ryan'.
   """
 
   TYPE_NAME = 'WordPress'
 
-  # xmlrpc_url = db.StringProperty(required=True)
   blog_id = db.IntegerProperty(required=True)
   username = db.StringProperty(required=True)
   password = db.StringProperty(required=True)
@@ -41,14 +39,6 @@ class WordPress(models.Destination):
   def xmlrpc_url(self):
     """Returns the string XML-RPC URL."""
     return self.key_name_parts()[0]
-
-  # def blog_id(self):
-  #   """Returns the integer blog id."""
-  #   return self.key_name_parts()[1]
-
-  # def username(self):
-  #   """Returns the string username."""
-  #   return self.key_name_parts()[2]
 
   @classmethod
   def new(cls, handler):
