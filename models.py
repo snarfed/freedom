@@ -162,6 +162,7 @@ class Migratable(SpaceKeyNameModel):
   the post or comment and must not have spaces in it.
   """
 
+  TYPE = None  # subclasses should set this to 'post' or 'comment'
   STATUSES = ('new', 'processing', 'complete')
 
   status = db.StringProperty(choices=STATUSES, default='new')
@@ -169,8 +170,15 @@ class Migratable(SpaceKeyNameModel):
   # JSON data for this post from the source social network's API.
   data = db.TextProperty()
 
-  @db.transactional
-  def get_or_save(self):
+  def to_activity(self):
+    """Returns an ActivityStreams activity dict for this post or comment.
+
+    To be implemented by subclasses.
+    """
+    raise NotImplementedError()
+
+  def get_or_save(self, task_countdown=0):
+    """Like get_or_insert, and adds a propagate task if the entity is new."""
     existing = db.get(self.key())
     key_str = '%s %s' % (self.kind(), self.key().name())
     if existing:
@@ -178,7 +186,9 @@ class Migratable(SpaceKeyNameModel):
       return existing
 
     logging.debug('New entity to propagate: %s', key_str)
-    taskqueue.add(queue_name='propagate', params={'key': str(self.key())})
+    taskqueue.add(queue_name='propagate',
+                  params={'kind': self.kind(), 'key_name': self.key().name()},
+                  countdown=task_countdown)
     self.save()
     return self
 
@@ -188,5 +198,5 @@ class Migratable(SpaceKeyNameModel):
 
   def dest(self):
     """Returns the destination for this post's migration."""
-    return db.get(*self.key_name_parts()[3:])
+    return db.get(db.Key.from_path(*self.key_name_parts()[3:]))
 

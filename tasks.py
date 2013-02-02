@@ -79,11 +79,10 @@ class Scan(webapp2.RequestHandler):
     scan_url = self.request.get('scan_url')
     logging.info('Scanning %s', scan_url)
     posts, next_scan_url = source.get_posts(migration, scan_url=scan_url)
-    for post in posts:
+    for i, post in enumerate(posts):
       # this will add a propagate task if the post is new (to us)
-      # TODO: delay by X seconds, staggered 1s per post
-      post.get_or_save()
-      logging.info('Saved post %s', post.key().name())
+      # TODO: delay by X seconds, staggered one second per post
+      post.get_or_save(task_countdown=i)
 
     # add next scan task
     if next_scan_url:
@@ -100,13 +99,16 @@ class Propagate(webapp2.RequestHandler):
   """Task handler that propagates a single post or comment.
 
   Request parameters:
-    key: string key of post or comment
-    post: optional. if present, this is a post.
-    comment: optional. if present, this is a comment.
+    kind: string kind
+    key_name: string key name
   """
 
   # request deadline (10m) plus some padding
   LEASE_LENGTH = datetime.timedelta(minutes=12)
+
+  def get_entity(self):
+    return db.get(db.Key.from_path(self.request.params['kind'],
+                                   self.request.params['key_name']))
 
   def post(self):
     logging.debug('Params: %s', self.request.params)
@@ -116,12 +118,12 @@ class Propagate(webapp2.RequestHandler):
       dest = entity.dest()
       if entity:
         # TODO: port to ndb and use caching
-        if 'post' in self.request.params:
+        if entity.TYPE == 'post':
           dest.publish_post(entity)
-        elif 'comment' in self.request.params:
+        elif entity.TYPE == 'comment':
           dest.publish_comment(entity)
         else:
-          logging.error('Skipping bad task without post or comment query param')
+          logging.error('Skipping unknown type %S', entity.TYPE)
         self.complete()
     except Exception, e:
       logging.exception('Propagate task failed')
@@ -135,7 +137,7 @@ class Propagate(webapp2.RequestHandler):
 
     Returns the entity on success, otherwise None.
     """
-    entity = db.get(self.request.params['key'])
+    entity = self.get_entity()
 
     if entity is None:
       raise exc.HTTPExpectationFailed('entity not found!')
@@ -157,7 +159,7 @@ class Propagate(webapp2.RequestHandler):
   def complete(self):
     """Attempts to mark the post or comment entity completed.
     """
-    entity = db.get(self.request.params['key'])
+    entity = self.get_entity()
 
     if entity is None:
       raise exc.HTTPExpectationFailed('entity disappeared!')
@@ -177,7 +179,7 @@ class Propagate(webapp2.RequestHandler):
   def release(self):
     """Attempts to release the lease on the post or comment entity.
     """
-    entity = db.get(self.request.params['key'])
+    entity = self.get_entity()
     if entity and entity.status == 'processing':
       entity.status = 'new'
       entity.leased_until = None

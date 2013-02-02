@@ -9,7 +9,6 @@ import re
 import xmlrpclib
 import urllib
 
-import activitystreams
 import appengine_config
 import models
 from webutil import util
@@ -17,6 +16,11 @@ from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
+
+# can't 'import activitystreams' or 'import activitystreams as ...' or
+# 'from activitystreams import activitystreams'. all break future importing
+# inside activitystreams. damn symlinks.
+from activitystreams.activitystreams import render_html 
 
 
 class WordPress(models.Destination):
@@ -70,13 +74,13 @@ class WordPress(models.Destination):
 
     return WordPress.get_or_insert(xmlrpc_url, **properties)
 
-  def publish_post(self, activity):
+  def publish_post(self, post):
     """Publishes a post.
 
     Args:
-      activity: dict, parsed JSON ActivityStreams activity
+      post: post entity
     """
-    obj = activity['object']
+    obj = post.to_activity()['object']
     date = util.parse_iso8601(obj['published'])
     location = obj.get('location')
 
@@ -103,10 +107,10 @@ class WordPress(models.Destination):
       upload = xmlrpc.upload_file(filename, mime_type, resp.read())
       image['url'] = upload['url']
 
-    content = activitystreams.render_html(post, upload)
+    content = render_html(post, upload)
 
     # post!
-    logging.info('Publishing post %s', title)
+    logging.info('Publishing post %s', post['id'])
     post_id = xmlrpc.new_post({
       'post_type': 'post',
       'post_status': 'publish',
@@ -131,17 +135,20 @@ class WordPress(models.Destination):
     Args:
       comment: dict, parsed JSON ActivityStreams object
     """
-    author = reply.get('author', {})
-    content = reply.get('content')
+    obj = comment.to_activity()['object']
+    author = obj.get('author', {})
+    content = obj.get('content')
     if not content:
-      continue
-    logging.info('Publishing reply "%s"', content[:30])
+      logging.warning('Skipping empty comment %s', obj['id'])
+      return
+
+    logging.info('Publishing comment %s', obj['id'])
 
     try:
       comment_id = xmlrpc.new_comment(post_id, {
           'author': author.get('displayName', 'Anonymous'),
           'author_url': author.get('url'),
-          'content': activitystreams.render_html(reply),
+          'content': activitystreams.render_html(obj),
           })
     except xmlrpclib.Fault, e:
       # if it's a dupe, we're done!
@@ -149,10 +156,10 @@ class WordPress(models.Destination):
               e.faultString.startswith('Duplicate comment detected')):
         raise
 
-    published = reply.get('published')
+    published = obj.get('published')
     if published:
       date = parse_iso8601(published)
-      logging.info("Updating reply's time to %s", date)
+      logging.info("Updating comment's time to %s", date)
       xmlrpc.edit_comment(comment_id, {'date_created_gmt': date})
 
 

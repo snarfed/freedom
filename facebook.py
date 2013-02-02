@@ -10,6 +10,7 @@ import logging
 import urllib
 import urlparse
 
+from activitystreams import facebook as as_facebook
 import appengine_config
 import models
 
@@ -125,19 +126,18 @@ class Facebook(models.Source):
           (app and app in APPLICATION_BLACKLIST) or
           # posts with 'story' aren't explicit posts. they're friend approvals or
           # likes or photo tags or comments on other people's posts.
-          'story' in obj):
+          'story' in post):
         logging.info('Skipping post %s', post.get('id'))
         continue
-
-      # get a larger version of photos
-      image = post.get('image', '')
-      if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
-        post['image'] = image[:-6] + '_o.jpg'
 
       posts.append(FacebookPost(key_name_parts=(post['id'], migration.key().name()),
                                 data=json.dumps(post)))
 
     next_scan_url = resp.get('paging', {}).get('next')
+    # XXX remove
+    if posts and json.loads(posts[-1].data)['created_time'] < '2012-12-01':
+      next_scan_url = None
+    # XXX
     return posts, next_scan_url
 
 
@@ -146,7 +146,26 @@ class FacebookPost(models.Migratable):
 
   The key name is 'POST_ID MIGRATION_KEY_NAME'.
   """
-  pass
+
+  TYPE = 'post'
+
+  def to_activity(self):
+    """Returns an ActivityStreams activity dict for this post."""
+    return as_facebook.Facebook(None).post_to_activity(json.loads(self.data))
+
+
+class FacebookComment(models.Migratable):
+  """A Facebook comment.
+
+  The key name is 'COMMENT_ID MIGRATION_KEY_NAME'.
+  """
+
+  TYPE = 'comment'
+
+  def to_activity(self):
+    """Returns an ActivityStreams activity dict for this comment."""
+    obj = as_facebook.Facebook(None).comment_to_object(json.loads(self.data))
+    return {'object': obj}
 
 
 class AddFacebook(webapp2.RequestHandler):
