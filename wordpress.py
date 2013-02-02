@@ -103,7 +103,7 @@ class WordPress(models.Destination):
     content = render(post, upload)
   
     # post!
-    logging.info('Publishing %s', title)
+    logging.info('Publishing post %s', title)
     post_id = xmlrpc.new_post({
       'post_type': 'post',
       'post_status': 'publish',

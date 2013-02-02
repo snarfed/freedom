@@ -14,6 +14,7 @@ from webob import exc
 # need to import model class definitions since scan creates and saves entities.
 import facebook
 # import googleplus
+import migrations
 import models
 # import twitter
 from webutil import webapp2
@@ -100,6 +101,8 @@ class Propagate(webapp2.RequestHandler):
 
   Request parameters:
     key: string key of post or comment
+    post: optional. if present, this is a post.
+    comment: optional. if present, this is a comment.
   """
 
   # request deadline (10m) plus some padding
@@ -111,7 +114,13 @@ class Propagate(webapp2.RequestHandler):
     try:
       entity = self.lease()
       if entity:
-        entity.propagate()
+        # TODO: port to ndb and use caching
+        if 'post' in self.request.params:
+          migrations.migrate_post(entity)
+        elif 'comment' in self.request.params:
+          migrations.migrate_comment(entity)
+        else:
+          logging.error('Skipping bad task without post or comment query param')
         self.complete()
     except Exception, e:
       logging.exception('Propagate task failed')

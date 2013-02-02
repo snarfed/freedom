@@ -169,13 +169,6 @@ class Migratable(SpaceKeyNameModel):
   # JSON data for this post from the source social network's API.
   data = db.TextProperty()
 
-  def propagate(self):
-    """Propagates this post or comment to its destination.
-
-    To be implemented by subclasses.
-    """
-    raise NotImplementedError()
-
   @db.transactional
   def get_or_save(self):
     existing = db.get(self.key())
@@ -196,3 +189,4 @@ class Migratable(SpaceKeyNameModel):
   def dest(self):
     """Returns the destination for this post's migration."""
     return db.get(*self.key_name_parts()[3:])
+

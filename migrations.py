@@ -21,6 +21,25 @@ from google.appengine.api import taskqueue
 from google.appengine.ext import db
 
 
+def migrate_post(post):
+  """Migrates a post from a source to a destination.
+
+  Args:
+    post: Migratable subclass instance
+  """
+  STATE: here. use post.data.
+  dest = post.dest()
+
+
+def migrate_comment(comment):
+  """Migrates a post from a source to a destination.
+
+  Args:
+    comment: Migratable subclass instance
+  """
+  dest = comment.dest()
+
+
 class MigrateHandler(webapp2.RequestHandler):
   """Starts a migration."""
   # TODO

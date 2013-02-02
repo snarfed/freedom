@@ -98,14 +98,45 @@ class Facebook(models.Source):
       next_scan_url is a string, the API URL to use for the next scan, or None
       if there is nothing more to scan.
     """
+    # TODO: expose these as options
+    # Publish these post types.
+    POST_TYPES = ('link', 'checkin', 'video')  # , 'photo', 'status', ...
+    
+    # Publish these status types.
+    STATUS_TYPES = ('shared_story', 'added_photos', 'mobile_status_update')
+      # 'wall_post', 'approved_friend', 'created_note', 'tagged_in_photo', ...
+    
+    # Don't publish posts from these applications
+    APPLICATION_BLACKLIST = ('Likes', 'Links', 'twitterfeed')
+    
+    # Attach these tags to the WordPress posts.
+    POST_TAGS = ['freedom.io']
+
     if not scan_url:
       scan_url = API_POSTS_URL % {'id': self.key().name(),
                                   'access_token': self.access_token}
     resp = json.loads(util.urlfetch(scan_url))
 
-    posts = [FacebookPost(key_name_parts=(post['id'], migration.key().name()),
-                          data=json.dumps(post))
-             for post in resp['data']]
+    posts = []
+    for post in resp['data']:
+      app = post.get('application', {}).get('name')
+      if ((post.get('type') not in POST_TYPES and
+           post.get('status_type') not in STATUS_TYPES) or
+          (app and app in APPLICATION_BLACKLIST) or
+          # posts with 'story' aren't explicit posts. they're friend approvals or
+          # likes or photo tags or comments on other people's posts.
+          'story' in obj):
+        logging.info('Skipping %s', post.get('id'))
+        continue
+
+      # for photos, get a larger version
+      image = post.get('image', '')
+      if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
+        post['image'] = image[:-6] + '_o.jpg'
+
+      posts.append(FacebookPost(key_name_parts=(post['id'], migration.key().name()),
+                                data=json.dumps(post)))
+
     next_scan_url = resp.get('paging', {}).get('next')
     return posts, next_scan_url
 
@@ -115,11 +146,7 @@ class FacebookPost(models.Migratable):
 
   The key name is 'POST_ID MIGRATION_KEY_NAME'.
   """
-
-  def propagate(self, dest):
-    """Propagates this post or comment to its destination.
-    """
-    logging.info('Propagating %s', self.key().name())
+  pass
 
 
 class AddFacebook(webapp2.RequestHandler):

@@ -38,7 +38,7 @@ handlers:
 #   secure: always
 
 - url: /(migrate|migration/.*)
-  script: migration.application
+  script: migrations.application
   secure: always
 
 - url: /_ah/queue/.*
