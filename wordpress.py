@@ -9,6 +9,7 @@ import re
 import xmlrpclib
 import urllib
 
+import activitystreams
 import appengine_config
 import models
 from webutil import util
@@ -69,20 +70,20 @@ class WordPress(models.Destination):
 
     return WordPress.get_or_insert(xmlrpc_url, **properties)
 
-  def publish_post(self, post):
+  def publish_post(self, activity):
     """Publishes a post.
 
     Args:
-      post: dict, parsed JSON of ActivityStreams activity
+      activity: dict, parsed JSON ActivityStreams activity
     """
-    date = util.parse_iso8601(post['published'])
-    location = post.get('location')
-    image = post.get('image', {}).get('url', '')
-  
+    obj = activity['object']
+    date = util.parse_iso8601(obj['published'])
+    location = obj.get('location')
+
     # extract title
-    title = post.get('title')
+    title = obj.get('title')
     if not title:
-      first_phrase = re.search('^[^,.:;?!]+', post.get('content', ''))
+      first_phrase = re.search('^[^,.:;?!]+', obj.get('content', ''))
       if first_phrase:
         title = first_phrase.group()
       elif location and 'displayName' in location:
@@ -91,17 +92,19 @@ class WordPress(models.Destination):
         title = date.date().isoformat()
   
     # photo
-    upload = None
-    if post.get('objectType') == 'photo' and image:
-      logging.info('Downloading %s', image)
-      resp = urllib2.urlopen(image)
-      filename = os.path.basename(urlparse.urlparse(image).path)
+    image = obj.get('image', {})
+    image_url = image.get('url')
+    if obj.get('objectType') == 'photo' and image_url:
+      logging.info('Downloading %s', image_url)
+      resp = urllib2.urlopen(image_url)
+      filename = os.path.basename(urlparse.urlparse(image_url).path)
       mime_type = resp.info().gettype()
       logging.info('Uploading as %s', mime_type)
       upload = xmlrpc.upload_file(filename, mime_type, resp.read())
-  
-    content = render(post, upload)
-  
+      image['url'] = upload['url']
+
+    content = activitystreams.render_html(post, upload)
+
     # post!
     logging.info('Publishing post %s', title)
     post_id = xmlrpc.new_post({
@@ -118,7 +121,7 @@ class WordPress(models.Destination):
       'terms_names': {'post_tag': POST_TAGS},
       })
 
-    for comment in post.get('replies', {}).get('items', []):
+    for comment in obj.get('replies', {}).get('items', []):
       # TODO
       logging.info('Publishing comment %s', comment['id'])
 
@@ -126,7 +129,7 @@ class WordPress(models.Destination):
     """Publishes a comment.
 
     Args:
-      comment: dict, parsed JSON of ActivityStreams activity
+      comment: dict, parsed JSON ActivityStreams object
     """
     author = reply.get('author', {})
     content = reply.get('content')
@@ -138,7 +141,7 @@ class WordPress(models.Destination):
       comment_id = xmlrpc.new_comment(post_id, {
           'author': author.get('displayName', 'Anonymous'),
           'author_url': author.get('url'),
-          'content': render(reply),
+          'content': activitystreams.render_html(reply),
           })
     except xmlrpclib.Fault, e:
       # if it's a dupe, we're done!

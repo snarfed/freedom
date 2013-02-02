@@ -126,10 +126,10 @@ class Facebook(models.Source):
           # posts with 'story' aren't explicit posts. they're friend approvals or
           # likes or photo tags or comments on other people's posts.
           'story' in obj):
-        logging.info('Skipping %s', post.get('id'))
+        logging.info('Skipping post %s', post.get('id'))
         continue
 
-      # for photos, get a larger version
+      # get a larger version of photos
       image = post.get('image', '')
       if (ptype == 'photo' or stype == 'added_photos') and image.endswith('_s.jpg'):
         post['image'] = image[:-6] + '_o.jpg'

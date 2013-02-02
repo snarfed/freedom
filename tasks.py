@@ -113,12 +113,13 @@ class Propagate(webapp2.RequestHandler):
 
     try:
       entity = self.lease()
+      dest = entity.dest()
       if entity:
         # TODO: port to ndb and use caching
         if 'post' in self.request.params:
-          migrations.migrate_post(entity)
+          dest.publish_post(entity)
         elif 'comment' in self.request.params:
-          migrations.migrate_comment(entity)
+          dest.publish_comment(entity)
         else:
           logging.error('Skipping bad task without post or comment query param')
         self.complete()
