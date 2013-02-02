@@ -24,47 +24,24 @@ class SpaceKeyNameModel(util.KeyNameModel):
   """
 
   def __init__(self, *args, **kwargs):
-    """Sets key_name using the string components in the positional args.
+    """Constructs a key name if the key_name_parts kwarg is privded.
 
-    'key_name' must not be in kwargs.
+    If key_name_parts is in kwargs, key_name must not also be.
     """
-    if args and args[0]:
+    parts = kwargs.get('key_name_parts')
+    if parts:
       assert 'key_name' not in kwargs
-      kwargs['key_name'] = self.make_key_name(args)
-    super(SpaceKeyNameModel, self).__init__(**kwargs)
-
-  # this doesn't work because it uses the bound class name for the
-  # inner get_or_insert() call as the kind.
-  #
-  # @classmethod
-  # def get_or_insert(cls, *args, **kwargs):
-  #   """Wraps get_or_insert() and constructs a key name from positional args."""
-  #   return .get_or_insert(
-  #       SpaceKeyNameModel.make_key_name(*args), **kwargs)
+      kwargs['key_name'] = self.make_key_name(*parts)
+    super(SpaceKeyNameModel, self).__init__(*args, **kwargs)
 
   @staticmethod
   def make_key_name(*args):
     """Makes and returns a key name from the given component strings."""
-    for part in args:
-      assert ' ' not in part
     return ' '.join(args)
 
   def key_name_parts(self):
     """Returns the key name component strings as a list."""
     return self.key().name().split(' ')
-
-  # @db.transactional
-  # def get_or_save(self):
-  #   existing = db.get(self.key())
-  #   if existing:
-  #     logging.debug('Deferring to existing %s entity: %s',
-  #                   self.kind(), self.key_name())
-  #     return existing
-
-  #   logging.debug('New entity to propagate: %s', key_str)
-  #   taskqueue.add(queue_name='propagate', params={'key': str(self.key())})
-  #   self.save()
-  #   return self
 
 
 class Source(SpaceKeyNameModel):
@@ -72,10 +49,6 @@ class Source(SpaceKeyNameModel):
 
   Each concrete source type should subclass this.
   """
-
-  # POLL_TASK_DATETIME_FORMAT = '%Y-%m-%d-%H-%M-%S'
-  # EPOCH = datetime.datetime.utcfromtimestamp(0)
-  # last_polled = db.DateTimeProperty(default=EPOCH)
 
   # human-readable name for this source type. subclasses should override.
   TYPE_NAME = None
@@ -144,15 +117,17 @@ class Destination(SpaceKeyNameModel):
   Each concrete destination class should subclass this class.
   """
 
-  last_updated = db.DateTimeProperty()
-
-  def add_comment(self, comment):
-    """Posts the given comment to this site.
+  def publish_post(self, post):
+    """Publishes a post.
 
     To be implemented by subclasses.
+    """
+    raise NotImplementedError()
 
-    Args:
-      comment: Comment
+  def publish_comment(self, comment):
+    """Publishes a comment.
+
+    To be implemented by subclasses.
     """
     raise NotImplementedError()
 
@@ -192,7 +167,7 @@ class Migratable(SpaceKeyNameModel):
   status = db.StringProperty(choices=STATUSES, default='new')
   leased_until = db.DateTimeProperty()
   # JSON data for this post from the source social network's API.
-  data = db.StringProperty()
+  data = db.TextProperty()
 
   def propagate(self):
     """Propagates this post or comment to its destination.

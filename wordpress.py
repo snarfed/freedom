@@ -61,59 +61,96 @@ class WordPress(models.Destination):
     xmlrpc_url = properties['xmlrpc_url']
     db.LinkProperty().validate(xmlrpc_url)
 
-    # blog_id = properties['blog_id']
-    # if not blog_id:
-    #   blog_id = '0'
     if 'blog_id' not in properties:
       properties['blog_id'] = 0
-
-    # username = properties.pop('username')
 
     assert 'username' in properties
     assert 'password' in properties
 
-    # key_name = cls.make_key_name(xmlrpc_url, blog_id, username)
-    # return WordPress.get_or_insert(key_name, **properties)
-
     return WordPress.get_or_insert(xmlrpc_url, **properties)
 
-  def add_comment(self, comment):
-    """Posts a comment to this site.
+  def publish_post(self, post):
+    """Publishes a post.
 
     Args:
-      comment: Comment instance
+      post: dict, parsed JSON of ActivityStreams activity
     """
-    wp = WordPress(self.xmlrpc_url, self.blog_id, self.username, self.password)
+    date = util.parse_iso8601(post['published'])
+    location = post.get('location')
+    image = post.get('image', {}).get('url', '')
+  
+    # extract title
+    title = post.get('title')
+    if not title:
+      first_phrase = re.search('^[^,.:;?!]+', post.get('content', ''))
+      if first_phrase:
+        title = first_phrase.group()
+      elif location and 'displayName' in location:
+        title = 'At ' + location['displayName']
+      else:
+        title = date.date().isoformat()
+  
+    # photo
+    upload = None
+    if post.get('objectType') == 'photo' and image:
+      logging.info('Downloading %s', image)
+      resp = urllib2.urlopen(image)
+      filename = os.path.basename(urlparse.urlparse(image).path)
+      mime_type = resp.info().gettype()
+      logging.info('Uploading as %s', mime_type)
+      upload = xmlrpc.upload_file(filename, mime_type, resp.read())
+  
+    content = render(post, upload)
+  
+    # post!
+    logging.info('Publishing %s', title)
+    post_id = xmlrpc.new_post({
+      'post_type': 'post',
+      'post_status': 'publish',
+      'post_title': title,
+      # leave this unset to default to the authenticated user
+      # 'post_author': 0,
+      'post_content': content,
+      'post_date': date,
+      'comment_status': 'open',
+      # WP post tags are now implemented as taxonomies:
+      # http://codex.wordpress.org/XML-RPC_WordPress_API/Categories_%26_Tags
+      'terms_names': {'post_tag': POST_TAGS},
+      })
 
-    # note that wordpress strips many html tags (e.g. br) and almost all
-    # attributes (e.g. class) from html tags in comment contents. so, convert
-    # some of those tags to other tags that wordpress accepts.
-    content = re.sub('<br */?>', '<p />', comment.content)
+    for comment in post.get('replies', {}).get('items', []):
+      # TODO
+      logging.info('Publishing comment %s', comment['id'])
 
-    # since available tags are limited (see above), i use a fairly unique tag
-    # for the "via ..." link - cite - that site owners can use to style.
-    #
-    # example css on my site:
-    #
-    # .comment-content cite a {
-    #     font-size: small;
-    #     color: gray;
-    # }
-    content = '%s <cite><a href="%s">via %s</a></cite>' % (
-      content, comment.source_post_url, comment.source.type_display_name())
+  def publish_comment(self, comment):
+    """Publishes a comment.
 
-    author_url = str(comment.author_url) # xmlrpclib complains about string subclasses
-    post_id = get_post_id(comment.dest_post_url)
+    Args:
+      comment: dict, parsed JSON of ActivityStreams activity
+    """
+    author = reply.get('author', {})
+    content = reply.get('content')
+    if not content:
+      continue
+    logging.info('Publishing reply "%s"', content[:30])
 
     try:
-      wp.new_comment(post_id, comment.author_name, author_url, content)
+      comment_id = xmlrpc.new_comment(post_id, {
+          'author': author.get('displayName', 'Anonymous'),
+          'author_url': author.get('url'),
+          'content': render(reply),
+          })
     except xmlrpclib.Fault, e:
       # if it's a dupe, we're done!
-      if (e.faultCode == 500 and
-          e.faultString.startswith('Duplicate comment detected')):
-        pass
-      else:
+      if not (e.faultCode == 500 and
+              e.faultString.startswith('Duplicate comment detected')):
         raise
+
+    published = reply.get('published')
+    if published:
+      date = parse_iso8601(published)
+      logging.info("Updating reply's time to %s", date)
+      xmlrpc.edit_comment(comment_id, {'date_created_gmt': date})
 
 
 # TODO: unify with other dests, sources?

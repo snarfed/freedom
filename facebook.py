@@ -86,21 +86,25 @@ class Facebook(models.Source):
       picture='https://graph.facebook.com/%s/picture?type=small' % id,
       url='http://facebook.com/%s' % id)
 
-  def get_posts(self, migration, scan_url):
+  def get_posts(self, migration, scan_url=None):
     """Fetches a page of posts.
 
     Args:
-      scan_url: string, the API URL to fetch the current page of posts
+      scan_url: string, the API URL to fetch the current page of posts. If None,
+        starts at the beginning.
 
     Returns:
       (posts, next_scan_url). posts is a sequence of FacebookPosts.
       next_scan_url is a string, the API URL to use for the next scan, or None
       if there is nothing more to scan.
     """
-    resp = json.loads(util.urlfetch(
-        API_POSTS_URL % {'id': self.key().name(), 'access_token': self.access_token}))
+    if not scan_url:
+      scan_url = API_POSTS_URL % {'id': self.key().name(),
+                                  'access_token': self.access_token}
+    resp = json.loads(util.urlfetch(scan_url))
 
-    posts = [FacebookPost(post['id'], migration, data=json.dumps(post))
+    posts = [FacebookPost(key_name_parts=(post['id'], migration.key().name()),
+                          data=json.dumps(post))
              for post in resp['data']]
     next_scan_url = resp.get('paging', {}).get('next')
     return posts, next_scan_url
@@ -112,7 +116,7 @@ class FacebookPost(models.Migratable):
   The key name is 'POST_ID MIGRATION_KEY_NAME'.
   """
 
-  def propagate(self):
+  def propagate(self, dest):
     """Propagates this post or comment to its destination.
     """
     logging.info('Propagating %s', self.key().name())

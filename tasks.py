@@ -13,8 +13,9 @@ from webob import exc
 
 # need to import model class definitions since scan creates and saves entities.
 import facebook
-import googleplus
-import twitter
+# import googleplus
+import models
+# import twitter
 from webutil import webapp2
 
 from google.appengine.ext import db
@@ -49,7 +50,7 @@ NOW_FN = datetime.datetime.now
 
 
 # time between propagate requests for posts and comments from a single source
-PROPAGATE_DELAY = 
+POST_DELAY_SECS = 1
 
 
 class Scan(webapp2.RequestHandler):
@@ -71,14 +72,15 @@ class Scan(webapp2.RequestHandler):
       logging.warning('Missing migration! Dropping task.')
       return
 
-    source = Migration.source()
-    dest = Migration.dest()
+    source = migration.source()
+    dest = migration.dest()
 
-    scan_url = self.request.params['scan_url']
+    scan_url = self.request.get('scan_url')
     logging.info('Scanning %s', scan_url)
-    posts, next_scan_url = source.get_posts(dest)
+    posts, next_scan_url = source.get_posts(migration, scan_url=scan_url)
     for post in posts:
       # this will add a propagate task if the post is new (to us)
+      # TODO: delay by X seconds, staggered 1s per post
       post.get_or_save()
       logging.info('Saved post %s', post.key().name())
 
@@ -88,7 +90,7 @@ class Scan(webapp2.RequestHandler):
       new_params['scan_url'] = next_scan_url
       logging.info('Adding next scan task at %s', next_scan_url)
       taskqueue.add(queue_name='scan', params=new_params,
-                    countdown=len(posts) * PROPAGATE_DELAY)
+                    countdown=len(posts) * POST_DELAY_SECS)
     else:
       logging.info('No next page, done scanning!')
 
