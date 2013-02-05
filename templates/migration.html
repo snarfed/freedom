@@ -17,8 +17,13 @@
     to {{ migration.dest.xmlrpc_url }}</span></p>
 </div>
 
-<div>
-</div>
+{% for status, entities in migratables.items %}
+<ul>
+  {% for e in entities %}
+  <li>{{ e.kind }} {{ e.id }} {{ status }}</li>
+  {% endfor %}
+</ul>
+{% endfor %}
 
 <div id="bottom"></div>
 

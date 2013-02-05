@@ -110,9 +110,6 @@ class Facebook(models.Source):
     # Don't publish posts from these applications
     APPLICATION_BLACKLIST = ('Likes', 'Links', 'twitterfeed')
     
-    # Attach these tags to the WordPress posts.
-    POST_TAGS = ['freedom.io']
-
     if not scan_url:
       scan_url = API_POSTS_URL % {'id': self.key().name(),
                                   'access_token': self.access_token}
@@ -135,7 +132,7 @@ class Facebook(models.Source):
 
     next_scan_url = resp.get('paging', {}).get('next')
     # XXX remove
-    if posts and json.loads(posts[-1].data)['created_time'] < '2012-12-01':
+    if posts and json.loads(posts[-1].data)['created_time'] < '2013-01-01':
       next_scan_url = None
     # XXX
     return posts, next_scan_url

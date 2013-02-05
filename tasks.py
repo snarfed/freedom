@@ -73,8 +73,8 @@ class Scan(webapp2.RequestHandler):
       logging.warning('Missing migration! Dropping task.')
       return
 
-    source = migration.source()
-    dest = migration.dest()
+    logging.info('Getting source and dest')
+    source = db.get(migration.source_key())
 
     scan_url = self.request.get('scan_url')
     logging.info('Scanning %s', scan_url)
@@ -145,8 +145,6 @@ class Propagate(webapp2.RequestHandler):
       # let this response return 200 and finish
       logging.warning('duplicate task already propagated post/comment')
     elif entity.status == 'processing' and NOW_FN() < entity.leased_until:
-      # return error code, but don't raise an exception because we don't want
-      # the exception handler in post() to catch it and try to release the lease.
       raise exc.HTTPConflict('duplicate task is currently processing!')
     else:
       assert entity.status in ('new', 'processing')

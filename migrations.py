@@ -3,6 +3,7 @@
 
 __author__ = 'Ryan Barrett <freedom@ryanb.org>'
 
+import itertools
 import logging
 import urllib
 from webob import exc
@@ -56,6 +57,13 @@ class MigrateHandler(webapp2.RequestHandler):
 
 
 class MigrationHandler(handlers.TemplateHandler):
+  """Shows the status page for a migration."""
+
+  # map source kind to model classes for that source
+  MIGRATABLES = {
+    'Facebook': (facebook.FacebookComment, facebook.FacebookPost),
+    }
+  
   """Renders and serves the migration page.
 
   Attributes:
@@ -69,11 +77,26 @@ class MigrationHandler(handlers.TemplateHandler):
     return 'templates/migration.html'
 
   def template_vars(self):
+    logging.info('Fetching migration id %d.', self.id)
+
+    # TODO: port to ndb so these queries can run in parallel
     migration = models.Migration.all().filter('id =', self.id).get()
     if not migration:
       raise exc.HTTPBadRequest('Migration id %d not found.' % self.id)
     logging.info('Got migration %s', migration.key().name())
-    return {'migration': migration}
+
+    logging.info('Fetching posts and comments')
+    source_kind = migration.source_key().kind()
+    migratables = {
+      status: itertools.chain(*(
+        cls.all().filter('migration =', migration.key())
+          .filter('status =', status)
+          .order('-last_updated')
+          .fetch(20)
+        for cls in self.MIGRATABLES[source_kind]))
+      for status in models.Migratable.STATUSES}
+
+    return {'migration': migration, 'migratables': migratables}
 
 
 application = webapp2.WSGIApplication(

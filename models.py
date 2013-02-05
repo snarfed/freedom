@@ -118,16 +118,24 @@ class Destination(SpaceKeyNameModel):
   """
 
   def publish_post(self, post):
-    """Publishes a post.
+    """Publishes a post, idempotently.
 
     To be implemented by subclasses.
+
+    In order to be idempotent, this should include the post id in the
+    destination post so that it can be queried later to see if it's
+    already been published or not.
     """
     raise NotImplementedError()
 
   def publish_comment(self, comment):
-    """Publishes a comment.
+    """Publishes a comment, idempotently.
 
     To be implemented by subclasses.
+
+    In order to be idempotent, this should include the comment id in the
+    destination comment so that it can be queried later to see if it's
+    already been published or not.
     """
     raise NotImplementedError()
 
@@ -144,15 +152,21 @@ class Migration(SpaceKeyNameModel):
   status = db.StringProperty(choices=STATUSES, default='new')
   id = db.IntegerProperty(required=True)
 
-  def source(self):
-    """Returns this Migration's source."""
-    logging.info('Getting source %s', self.key_name_parts()[:2])
-    return db.get(db.Key.from_path(*self.key_name_parts()[:2]))
+  # def source(self):
+  #   """Returns this migration's source."""
+  #   return db.get(self.source_key())
 
-  def dest(self):
-    """Returns this Migration's destination."""
-    logging.info('Getting dest %s', self.key_name_parts()[2:])
-    return db.get(db.Key.from_path(*self.key_name_parts()[2:]))
+  def source_key(self):
+    """Returns the Key for this migration's source."""
+    return db.Key.from_path(*self.key_name_parts()[:2])
+
+  # def dest(self):
+  #   """Returns this migration's destination."""
+  #   return db.get(self.dest_key())
+
+  def dest_key(self):
+    """Returns the Key for this migration's destination."""
+    return db.Key.from_path(*self.key_name_parts()[2:])
 
 
 class Migratable(SpaceKeyNameModel):
@@ -166,9 +180,12 @@ class Migratable(SpaceKeyNameModel):
   STATUSES = ('new', 'processing', 'complete')
 
   status = db.StringProperty(choices=STATUSES, default='new')
+  last_updated = db.DateTimeProperty(auto_now=True)
   leased_until = db.DateTimeProperty()
   # JSON data for this post from the source social network's API.
   data = db.TextProperty()
+  # duplicated here (as well as in the key name) so it can be queried.
+  migration = db.ReferenceProperty(Migration)
 
   def to_activity(self):
     """Returns an ActivityStreams activity dict for this post or comment.
@@ -177,26 +194,32 @@ class Migratable(SpaceKeyNameModel):
     """
     raise NotImplementedError()
 
+  @db.transactional
   def get_or_save(self, task_countdown=0):
-    """Like get_or_insert, and adds a propagate task if the entity is new."""
-    existing = db.get(self.key())
+    """Like get_or_insert, and adds a propagate task."""
+    entity = db.get(self.key())
     key_str = '%s %s' % (self.kind(), self.key().name())
-    if existing:
-      logging.debug('Deferring to existing entity: %s', key_str)
-      return existing
+    if entity:
+      logging.info('Deferring to existing entity: %s', key_str)
+    else:
+      logging.info('Creating new entity: %s', key_str)
+      self.migration = db.Key.from_path('Migration',
+                                        ' '.join(self.key_name_parts()[1:]))
+      self.save()
+      entity = self
 
-    logging.debug('New entity to propagate: %s', key_str)
-    taskqueue.add(queue_name='propagate',
-                  params={'kind': self.kind(), 'key_name': self.key().name()},
-                  countdown=task_countdown)
-    self.save()
-    return self
+    if entity.status == 'new':
+      logging.info('Adding propagate task')
+      taskqueue.add(queue_name='propagate',
+                    params={'kind': self.kind(), 'key_name': self.key().name()},
+                    countdown=task_countdown,
+                    transactional=True)
+    return entity
 
   def id(self):
-    """Returns this post's id."""
+    """Returns the source id of this post or comment."""
     return self.key_name_parts()[0]
 
   def dest(self):
-    """Returns the destination for this post's migration."""
+    """Returns the destination for this post or comment."""
     return db.get(db.Key.from_path(*self.key_name_parts()[3:]))
-

@@ -3,12 +3,17 @@
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
 
-
+import functools
 import logging
+import os
 import re
+import sys
 import xmlrpclib
 import urllib
+import urllib2
+import urlparse
 
+from activitystreams import activitystreams
 import appengine_config
 import models
 from webutil import util
@@ -16,11 +21,6 @@ from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
-
-# can't 'import activitystreams' or 'import activitystreams as ...' or
-# 'from activitystreams import activitystreams'. all break future importing
-# inside activitystreams. damn symlinks.
-from activitystreams.activitystreams import render_html 
 
 
 class WordPress(models.Destination):
@@ -80,9 +80,16 @@ class WordPress(models.Destination):
     Args:
       post: post entity
     """
+    # TODO: expose as option
+    # Attach these tags to the WordPress posts.
+    POST_TAGS = ['freedom.io']
+
     obj = post.to_activity()['object']
     date = util.parse_iso8601(obj['published'])
     location = obj.get('location')
+    xmlrpc = XmlRpc(self.xmlrpc_url(), self.blog_id, self.username, self.password,
+                    verbose=True)
+    logging.info('Publishing post %s', obj['id'])
 
     # extract title
     title = obj.get('title')
@@ -101,17 +108,18 @@ class WordPress(models.Destination):
     if obj.get('objectType') == 'photo' and image_url:
       logging.info('Downloading %s', image_url)
       resp = urllib2.urlopen(image_url)
+      logging.info('downloaded %d bytes', len(read))
       filename = os.path.basename(urlparse.urlparse(image_url).path)
       mime_type = resp.info().gettype()
-      logging.info('Uploading as %s', mime_type)
+      logging.info('Sending uploadFile: %s %s', mime_type, filename)
       upload = xmlrpc.upload_file(filename, mime_type, resp.read())
       image['url'] = upload['url']
 
-    content = render_html(post, upload)
+    content = activitystreams.render_html(obj)
 
     # post!
-    logging.info('Publishing post %s', post['id'])
-    post_id = xmlrpc.new_post({
+    # http://codex.wordpress.org/XML-RPC_WordPress_API/Posts#wp.newPost
+    new_post_params = {
       'post_type': 'post',
       'post_status': 'publish',
       'post_title': title,
@@ -123,7 +131,9 @@ class WordPress(models.Destination):
       # WP post tags are now implemented as taxonomies:
       # http://codex.wordpress.org/XML-RPC_WordPress_API/Categories_%26_Tags
       'terms_names': {'post_tag': POST_TAGS},
-      })
+      }
+    logging.info('Sending newPost: %r', new_post_params)
+    post_id = xmlrpc.new_post(new_post_params)
 
     for comment in obj.get('replies', {}).get('items', []):
       # TODO
@@ -185,6 +195,25 @@ class DeleteWordPress(webapp2.RequestHandler):
     self.redirect('/?msg=' + msg)
 
 
+def stdout_on(fn):
+  """A decorator that resets stdout temporarily for the duration of the function.
+
+  xmlrpclib uses stdout for its verbose output, but dev_appserver and HTTP
+  handlers both intercept and reroute it, so the verbose output is lost. This
+  fixes that.
+  """
+  @functools.wraps(fn)
+  def wrapper(*args, **kwds):
+    orig = sys.stdout  
+    sys.stdout = sys.__stdout__
+    try:
+      return fn(*args, **kwds)
+    finally:
+      sys.stdout = orig
+
+  return wrapper
+
+
 class XmlRpc(object):
   """A minimal XML-RPC interface to a WordPress blog.
 
@@ -204,13 +233,16 @@ class XmlRpc(object):
 
   transport = None
 
-  def __init__(self, xmlrpc_url, blog_id, username, password, verbose=0):
-    self.proxy = xmlrpclib.ServerProxy(xmlrpc_url, allow_none=True,
+  def __init__(self, url, blog_id, username, password, verbose=0):
+    # xmlrpclib is finicky about the url parameter. it doesn't allow unicode, so
+    # coerce to string.
+    self.proxy = xmlrpclib.ServerProxy(str(url), allow_none=True,
                                        transport=XmlRpc.transport, verbose=verbose)
     self.blog_id = blog_id
     self.username = username
     self.password = password
 
+  @stdout_on
   def new_post(self, content):
     """Adds a new post.
 
@@ -224,11 +256,12 @@ class XmlRpc(object):
     return self.proxy.wp.newPost(self.blog_id, self.username, self.password,
                                  content)
 
+  @stdout_on
   def new_comment(self, post_id, comment):
     """Adds a new comment.
 
     Details: http://codex.wordpress.org/XML-RPC_WordPress_API/Comments#wp.newComment
-
+ 
     Args:
       post_id: integer, post id
       comment: dict, see link above for fields
@@ -246,6 +279,7 @@ class XmlRpc(object):
     # via the xmlrpc_allow_anonymous_comments filter.
     return self.proxy.wp.newComment(self.blog_id, '', '', post_id, comment)
 
+  @stdout_on
   def edit_comment(self, comment_id, comment):
     """Edits an existing comment.
 
@@ -258,6 +292,7 @@ class XmlRpc(object):
     return self.proxy.wp.editComment(self.blog_id, self.username, self.password,
                                      comment_id, comment)
 
+  @stdout_on
   def upload_file(self, filename, mime_type, data):
     """Uploads a file.
 
@@ -268,6 +303,7 @@ class XmlRpc(object):
       mime_type: string
       data: string, the file contents (may be binary)
     """
+    logging.info('uploading %d bytes', len(data))
     return self.proxy.wp.uploadFile(
       self.blog_id, self.username, self.password,
       {'name': filename, 'type': mime_type, 'bits': xmlrpclib.Binary(data)})
