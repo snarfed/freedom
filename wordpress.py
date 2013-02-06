@@ -88,7 +88,7 @@ class WordPress(models.Destination):
     date = util.parse_iso8601(obj['published'])
     location = obj.get('location')
     xmlrpc = XmlRpc(self.xmlrpc_url(), self.blog_id, self.username, self.password,
-                    verbose=True)
+                    verbose=True, transport=GAEXMLRPCTransport())
     logging.info('Publishing post %s', obj['id'])
 
     # extract title
@@ -108,11 +108,12 @@ class WordPress(models.Destination):
     if obj.get('objectType') == 'photo' and image_url:
       logging.info('Downloading %s', image_url)
       resp = urllib2.urlopen(image_url)
-      logging.info('downloaded %d bytes', len(read))
+      data = resp.read()
+      logging.debug('downloaded %d bytes', len(data))
       filename = os.path.basename(urlparse.urlparse(image_url).path)
       mime_type = resp.info().gettype()
       logging.info('Sending uploadFile: %s %s', mime_type, filename)
-      upload = xmlrpc.upload_file(filename, mime_type, resp.read())
+      upload = xmlrpc.upload_file(filename, mime_type, data)
       image['url'] = upload['url']
 
     content = activitystreams.render_html(obj)
@@ -231,13 +232,11 @@ class XmlRpc(object):
     password: string, may be None
   """
 
-  transport = None
-
-  def __init__(self, url, blog_id, username, password, verbose=0):
+  def __init__(self, url, blog_id, username, password, verbose=0, transport=None):
     # xmlrpclib is finicky about the url parameter. it doesn't allow unicode, so
     # coerce to string.
     self.proxy = xmlrpclib.ServerProxy(str(url), allow_none=True,
-                                       transport=XmlRpc.transport, verbose=verbose)
+                                       transport=transport, verbose=verbose)
     self.blog_id = blog_id
     self.username = username
     self.password = password
@@ -307,6 +306,46 @@ class XmlRpc(object):
     return self.proxy.wp.uploadFile(
       self.blog_id, self.username, self.password,
       {'name': filename, 'type': mime_type, 'bits': xmlrpclib.Binary(data)})
+
+
+class GAEXMLRPCTransport(object):
+    """Handles an HTTP transaction to an XML-RPC server.
+
+    From http://brizzled.clapper.org/blog/2008/08/25/making-xmlrpc-calls-from-a-google-app-engine-application/
+    """
+
+    def __init__(self):
+        pass
+
+    def request(self, host, handler, request_body, verbose=0):
+        result = None
+        url = 'http://%s%s' % (host, handler)
+        try:
+            response = urlfetch.fetch(url,
+                                      payload=request_body,
+                                      method=urlfetch.POST,
+                                      headers={'Content-Type': 'text/xml'})
+        except:
+            msg = 'Failed to fetch %s' % url
+            logging.error(msg)
+            raise xmlrpclib.ProtocolError(host + handler, 500, msg, {})
+
+        if response.status_code != 200:
+            logging.error('%s returned status code %s' %
+                          (url, response.status_code))
+            raise xmlrpclib.ProtocolError(host + handler,
+                                          response.status_code,
+                                          "",
+                                          response.headers)
+        else:
+            result = self.__parse_response(response.content)
+
+        return result
+
+    def __parse_response(self, response_body):
+        p, u = xmlrpclib.getparser(use_datetime=False)
+        p.feed(response_body)
+        return u.close()
 
 
 application = webapp2.WSGIApplication([
