@@ -65,9 +65,6 @@ class Facebook(models.Source):
   def display_name(self):
     return self.name
 
-  def type_display_name(self):
-    return 'Facebook'
-
   @staticmethod
   def new(handler, access_token=None):
     """Creates and returns a Facebook instance for the logged in user.
@@ -102,14 +99,14 @@ class Facebook(models.Source):
     # TODO: expose these as options
     # Publish these post types.
     POST_TYPES = ('link', 'checkin', 'video')  # , 'photo', 'status', ...
-    
+
     # Publish these status types.
     STATUS_TYPES = ('shared_story', 'added_photos', 'mobile_status_update')
       # 'wall_post', 'approved_friend', 'created_note', 'tagged_in_photo', ...
-    
+
     # Don't publish posts from these applications
     APPLICATION_BLACKLIST = ('Likes', 'Links', 'twitterfeed')
-    
+
     if not scan_url:
       scan_url = API_POSTS_URL % {'id': self.key().name(),
                                   'access_token': self.access_token}
@@ -132,7 +129,7 @@ class Facebook(models.Source):
 
     next_scan_url = resp.get('paging', {}).get('next')
     # XXX remove
-    if posts and posts[-1].data()['created_time'] < '2013-01-01':
+    if posts and posts[-1].data()['created_time'] < '2012-06-01':
       next_scan_url = None
     # XXX
     return posts, next_scan_url

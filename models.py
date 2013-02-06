@@ -17,10 +17,12 @@ from google.appengine.api import taskqueue
 from google.appengine.ext import db
 
 
-class SpaceKeyNameModel(util.KeyNameModel):
-  """A model class with a key name of multiple strings separated by spaces.
+class Base(util.KeyNameModel):
+  """A model class with a few utilities.
 
-  The component strings themselves must not have spaces in them.
+  - Supports key name of multiple strings separated by spaces. The component
+    strings themselves must not have spaces in them.
+  - Includes type_display_name() and display_name() methods.
   """
 
   def __init__(self, *args, **kwargs):
@@ -32,7 +34,7 @@ class SpaceKeyNameModel(util.KeyNameModel):
     if parts:
       assert 'key_name' not in kwargs
       kwargs['key_name'] = self.make_key_name(*parts)
-    super(SpaceKeyNameModel, self).__init__(*args, **kwargs)
+    super(Base, self).__init__(*args, **kwargs)
 
   @staticmethod
   def make_key_name(*args):
@@ -43,8 +45,22 @@ class SpaceKeyNameModel(util.KeyNameModel):
     """Returns the key name component strings as a list."""
     return self.key().name().split(' ')
 
+  def display_name(self):
+    """Returns a human-readable name for this source, e.g. 'My Thoughts'.
 
-class Source(SpaceKeyNameModel):
+    To be implemented by subclasses.
+    """
+    raise NotImplementedError()
+
+  def type_display_name(self):
+    """Returns a human-readable name for this type of source, e.g. 'Facebook'.
+
+    Defaults to the model class's kind. May be overridden by subclasses.
+    """
+    return self.key().kind()
+
+
+class Source(Base):
   """A source to read posts from, e.g. a Facebook profile.
 
   Each concrete source type should subclass this.
@@ -57,19 +73,6 @@ class Source(SpaceKeyNameModel):
   picture = db.LinkProperty()
 
   @classmethod
-  def create_new(cls, handler, **kwargs):
-    """Creates and saves a new Source and adds a poll task for it.
-
-    Args:
-      handler: the current webapp.RequestHandler
-      **kwargs: passed to new()
-    """
-    new = cls.new(handler, **kwargs)
-    new.save()
-    new.add_scan_task()
-    return new
-
-  @classmethod
   def new(cls, handler, **kwargs):
     """Factory method. Creates and returns a new instance for the current user.
 
@@ -78,20 +81,6 @@ class Source(SpaceKeyNameModel):
     Args:
       handler: the current webapp.RequestHandler
       **kwargs: passed to new()
-    """
-    raise NotImplementedError()
-
-  def display_name(self):
-    """Returns a human-readable name for this source, e.g. 'My Thoughts'.
-
-    To be implemented by subclasses.
-    """
-    raise NotImplementedError()
-
-  def type_display_name(self):
-    """Returns a human-readable name for this type of source, e.g. 'Facebook'.
-
-    To be implemented by subclasses.
     """
     raise NotImplementedError()
 
@@ -111,7 +100,7 @@ class Source(SpaceKeyNameModel):
     raise NotImplementedError()
 
 
-class Destination(SpaceKeyNameModel):
+class Destination(Base):
   """A web site to propagate posts to, e.g. a WordPress blog.
 
   Each concrete destination class should subclass this class.
@@ -140,7 +129,7 @@ class Destination(SpaceKeyNameModel):
     raise NotImplementedError()
 
 
-class Migration(SpaceKeyNameModel):
+class Migration(Base):
   """A migration from a single source to a single destination.
 
   Key name is 'SOURCE_KIND SOURCE_KEY_NAME DEST_KIND DEST_KEY_NAME', e.g.
@@ -152,24 +141,32 @@ class Migration(SpaceKeyNameModel):
   status = db.StringProperty(choices=STATUSES, default='new')
   id = db.IntegerProperty(required=True)
 
-  # def source(self):
-  #   """Returns this migration's source."""
-  #   return db.get(self.source_key())
+  # lazily cached entities
+  cached_source = None
+  cached_dest = None
 
   def source_key(self):
     """Returns the Key for this migration's source."""
     return db.Key.from_path(*self.key_name_parts()[:2])
 
-  # def dest(self):
-  #   """Returns this migration's destination."""
-  #   return db.get(self.dest_key())
+  def source(self):
+    """Returns this migration's source. Caches lazily."""
+    if self.cached_source is None:
+      self.cached_source = db.get(self.source_key())
+    return self.cached_source
 
   def dest_key(self):
     """Returns the Key for this migration's destination."""
     return db.Key.from_path(*self.key_name_parts()[2:])
 
+  def dest(self):
+    """Returns this migration's destination. Caches lazily."""
+    if self.cached_dest is None:
+      self.cached_dest = db.get(self.dest_key())
+    return self.cached_dest
 
-class Migratable(SpaceKeyNameModel):
+
+class Migratable(Base):
   """A post or comment to be migrated.
 
   The key name is 'ID MIGRATION_KEY_NAME', where ID is the source-specific id of

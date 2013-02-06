@@ -74,7 +74,7 @@ class Scan(webapp2.RequestHandler):
       return
 
     logging.info('Getting source and dest')
-    source = db.get(migration.source_key())
+    source = migration.source()
 
     scan_url = self.request.get('scan_url')
     logging.info('Scanning %s', scan_url)

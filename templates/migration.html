@@ -13,8 +13,11 @@
 <div id="header">
   <!-- <a href="/"><img id="logo" src="/static/facebook_rss_small.jpg"></img></a> -->
   <p id="title"><span>
-    Migrating {{ migration.source.name }} from {{ migration.source.kind }}
-    to {{ migration.dest.xmlrpc_url }}</span></p>
+    Migrating {{ migration.source.display_name }}
+    ({{ migration.source.type_display_name }})
+    to {{ migration.dest.display_name }}
+    ({{ migration.dest.type_display_name }})
+    </span></p>
 </div>
 
 {% for status, entities in migratables.items %}

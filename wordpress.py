@@ -27,13 +27,10 @@ class WordPress(models.Destination):
   """A WordPress blog. Keys are id-based (ie don't have key names).
 
   The key name is the XML-RPC URL.
-
-  # The key name is 'XML-RPC_URL BLOG_ID USERNAME', e.g. 'http://my.site/ 0 ryan'.
   """
 
   TYPE_NAME = 'WordPress'
 
-  # xmlrpc_url = db.StringProperty(required=True)
   blog_id = db.IntegerProperty(required=True)
   username = db.StringProperty(required=True)
   password = db.StringProperty(required=True)
@@ -42,13 +39,8 @@ class WordPress(models.Destination):
     """Returns the string XML-RPC URL."""
     return self.key_name_parts()[0]
 
-  # def blog_id(self):
-  #   """Returns the integer blog id."""
-  #   return self.key_name_parts()[1]
-
-  # def username(self):
-  #   """Returns the string username."""
-  #   return self.key_name_parts()[2]
+  def display_name(self):
+    return util.domain_from_link(self.xmlrpc_url())
 
   @classmethod
   def new(cls, handler):
@@ -103,7 +95,7 @@ class WordPress(models.Destination):
         title = 'At ' + location['displayName']
       else:
         title = date.date().isoformat()
-  
+
     # photo
     image = obj.get('image', {})
     image_url = image.get('url')
@@ -182,11 +174,6 @@ class WordPress(models.Destination):
 # TODO: unify with other dests, sources?
 class AddWordPress(webapp2.RequestHandler):
   def post(self):
-    # try:
-    #   wp = WordPress.new(self).save()
-    # except db.BadValueError, e:
-    #   # self.messages.append(str(e))
-    #   pass
     wp = WordPress.new(self)
     wp.save()
     self.redirect('/?dest=%s' % urllib.quote(str(wp.key())))
@@ -210,7 +197,7 @@ def stdout_on(fn):
   """
   @functools.wraps(fn)
   def wrapper(*args, **kwds):
-    orig = sys.stdout  
+    orig = sys.stdout
     sys.stdout = sys.__stdout__
     try:
       return fn(*args, **kwds)
@@ -265,7 +252,7 @@ class XmlRpc(object):
     """Adds a new comment.
 
     Details: http://codex.wordpress.org/XML-RPC_WordPress_API/Comments#wp.newComment
- 
+
     Args:
       post_id: integer, post id
       comment: dict, see link above for fields
