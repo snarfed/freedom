@@ -79,6 +79,8 @@ class WordPress(models.Destination):
 
     Args:
       post: post entity
+
+    Returns: string, the WordPress post id
     """
     # TODO: expose as option
     # Attach these tags to the WordPress posts.
@@ -135,16 +137,15 @@ class WordPress(models.Destination):
       }
     logging.info('Sending newPost: %r', new_post_params)
     post_id = xmlrpc.new_post(new_post_params)
-
-    for comment in obj.get('replies', {}).get('items', []):
-      # TODO
-      logging.info('Publishing comment %s', comment['id'])
+    return str(post_id)
 
   def publish_comment(self, comment):
     """Publishes a comment.
 
     Args:
-      comment: dict, parsed JSON ActivityStreams object
+      comment: comment entity
+
+    Returns: string, the WordPress comment id
     """
     obj = comment.to_activity()['object']
     author = obj.get('author', {})
@@ -154,9 +155,11 @@ class WordPress(models.Destination):
       return
 
     logging.info('Publishing comment %s', obj['id'])
+    xmlrpc = XmlRpc(self.xmlrpc_url(), self.blog_id, self.username, self.password,
+                    verbose=True, transport=GAEXMLRPCTransport())
 
     try:
-      comment_id = xmlrpc.new_comment(post_id, {
+      comment_id = xmlrpc.new_comment(comment.dest_post_id, {
           'author': author.get('displayName', 'Anonymous'),
           'author_url': author.get('url'),
           'content': activitystreams.render_html(obj),
@@ -169,9 +172,11 @@ class WordPress(models.Destination):
 
     published = obj.get('published')
     if published:
-      date = parse_iso8601(published)
+      date = util.parse_iso8601(published)
       logging.info("Updating comment's time to %s", date)
       xmlrpc.edit_comment(comment_id, {'date_created_gmt': date})
+
+    return str(comment_id)
 
 
 # TODO: unify with other dests, sources?

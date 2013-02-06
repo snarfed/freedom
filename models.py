@@ -118,7 +118,7 @@ class Destination(SpaceKeyNameModel):
   """
 
   def publish_post(self, post):
-    """Publishes a post, idempotently.
+    """Publishes a post, idempotently, and returns its (destination) id.
 
     To be implemented by subclasses.
 
@@ -129,7 +129,7 @@ class Destination(SpaceKeyNameModel):
     raise NotImplementedError()
 
   def publish_comment(self, comment):
-    """Publishes a comment, idempotently.
+    """Publishes a comment, idempotently, and returns its (destination) id.
 
     To be implemented by subclasses.
 
@@ -183,9 +183,16 @@ class Migratable(SpaceKeyNameModel):
   last_updated = db.DateTimeProperty(auto_now=True)
   leased_until = db.DateTimeProperty()
   # JSON data for this post from the source social network's API.
-  data = db.TextProperty()
+  json_data = db.TextProperty()
   # duplicated here (as well as in the key name) so it can be queried.
   migration = db.ReferenceProperty(Migration)
+  # the destination-specific id of the migrated copy of this entity
+  dest_id = db.StringProperty()
+  # only populated for comments
+  dest_post_id = db.StringProperty()
+
+  # dict, cached copy of decoded JSON data
+  parsed_data = None
 
   def to_activity(self):
     """Returns an ActivityStreams activity dict for this post or comment.
@@ -193,6 +200,10 @@ class Migratable(SpaceKeyNameModel):
     To be implemented by subclasses.
     """
     raise NotImplementedError()
+
+  def get_comments(self):
+    """Returns a list of entities for this post's comments."""
+    return []
 
   @db.transactional
   def get_or_save(self, task_countdown=0):
@@ -223,3 +234,9 @@ class Migratable(SpaceKeyNameModel):
   def dest(self):
     """Returns the destination for this post or comment."""
     return db.get(db.Key.from_path(*self.key_name_parts()[3:]))
+
+  def data(self):
+    """Returns the JSON data as a dict. Parses lazily and caches the result."""
+    if self.parsed_data is None:
+      self.parsed_data = json.loads(self.json_data)
+    return self.parsed_data

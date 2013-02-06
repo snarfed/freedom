@@ -81,7 +81,6 @@ class Scan(webapp2.RequestHandler):
     posts, next_scan_url = source.get_posts(migration, scan_url=scan_url)
     for i, post in enumerate(posts):
       # this will add a propagate task if the post is new (to us)
-      # TODO: delay by X seconds, staggered one second per post
       post.get_or_save(task_countdown=i)
 
     # add next scan task
@@ -118,10 +117,17 @@ class Propagate(webapp2.RequestHandler):
       dest = entity.dest()
       if entity:
         # TODO: port to ndb and use caching
+        # TODO: make transactional (and add destination lookup first)
         if entity.TYPE == 'post':
-          dest.publish_post(entity)
+          entity.dest_id = dest.publish_post(entity)
+          entity.save()
+          for i, cmt in enumerate(entity.get_comments()):
+            cmt.dest_post_id = entity.dest_id
+            # this will add a propagate task if the comment is new (to us)
+            cmt.get_or_save(task_countdown=i)
         elif entity.TYPE == 'comment':
-          dest.publish_comment(entity)
+          entity.dest_id = dest.publish_comment(entity)
+          entity.save()
         else:
           logging.error('Skipping unknown type %S', entity.TYPE)
         self.complete()

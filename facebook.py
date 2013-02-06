@@ -128,11 +128,11 @@ class Facebook(models.Source):
         continue
 
       posts.append(FacebookPost(key_name_parts=(post['id'], migration.key().name()),
-                                data=json.dumps(post)))
+                                json_data=json.dumps(post)))
 
     next_scan_url = resp.get('paging', {}).get('next')
     # XXX remove
-    if posts and json.loads(posts[-1].data)['created_time'] < '2013-01-01':
+    if posts and posts[-1].data()['created_time'] < '2013-01-01':
       next_scan_url = None
     # XXX
     return posts, next_scan_url
@@ -148,7 +148,15 @@ class FacebookPost(models.Migratable):
 
   def to_activity(self):
     """Returns an ActivityStreams activity dict for this post."""
-    return as_facebook.Facebook(None).post_to_activity(json.loads(self.data))
+    return as_facebook.Facebook(None).post_to_activity(self.data())
+
+  def get_comments(self):
+    """Returns an iterable of FacebookComments for this post's comments."""
+    comments = self.data().get('comments', {}).get('data', [])
+    migration_key = FacebookPost.migration.get_value_for_datastore(self)
+    return (FacebookComment(key_name_parts=(cmt['id'], migration_key.name()),
+                            json_data=json.dumps(cmt))
+            for cmt in comments)
 
 
 class FacebookComment(models.Migratable):
@@ -161,7 +169,7 @@ class FacebookComment(models.Migratable):
 
   def to_activity(self):
     """Returns an ActivityStreams activity dict for this comment."""
-    obj = as_facebook.Facebook(None).comment_to_object(json.loads(self.data))
+    obj = as_facebook.Facebook(None).comment_to_object(self.data())
     return {'object': obj}
 
 
