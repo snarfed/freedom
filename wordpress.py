@@ -24,10 +24,7 @@ from google.appengine.ext import db
 
 
 class WordPress(models.Destination):
-  """A WordPress blog. Keys are id-based (ie don't have key names).
-
-  The key name is the XML-RPC URL.
-  """
+  """A WordPress blog. The key name is the XML-RPC URL."""
 
   TYPE_NAME = 'WordPress'
 

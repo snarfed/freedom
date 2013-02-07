@@ -23,3 +23,17 @@ indexes:
   - name: status
   - name: last_updated
     direction: desc
+
+- kind: Reply
+  properties:
+  - name: migration
+  - name: status
+  - name: last_updated
+    direction: desc
+
+- kind: Tweet
+  properties:
+  - name: migration
+  - name: status
+  - name: last_updated
+    direction: desc

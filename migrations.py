@@ -15,7 +15,7 @@ from webutil import webapp2
 
 import facebook
 # import googleplus
-# import twitter
+import twitter
 import wordpress
 
 from google.appengine.api import taskqueue
@@ -43,7 +43,8 @@ class MigrationHandler(handlers.TemplateHandler):
 
   # map source kind to model classes for that source
   MIGRATABLES = {
-    'Facebook': (facebook.FacebookComment, facebook.FacebookPost),
+    'Facebook': (facebook.FacebookPost, facebook.FacebookComment),
+    'Twitter': (twitter.Tweet, twitter.Reply),
     }
 
   """Renders and serves the migration page.

@@ -16,7 +16,7 @@ import facebook
 # import googleplus
 import migrations
 import models
-# import twitter
+import twitter
 from webutil import webapp2
 
 from google.appengine.ext import db

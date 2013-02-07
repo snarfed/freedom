@@ -212,7 +212,6 @@ class GotAuthCode(webapp2.RequestHandler):
     params = urlparse.parse_qs(resp.content)
 
     fb = Facebook.new(self, access_token=params['access_token'][0])
-    # self.redirect(urllib.unquote(self.request.get('state')))
     self.redirect('/?dest=%s&source=%s' % (self.request.get('state'),
                                            urllib.quote(str(fb.key()))))
 
