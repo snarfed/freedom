@@ -6,5 +6,7 @@ facebook_app_id
 facebook_app_secret
 facebook_app_id_local
 facebook_app_secret_local
+googleplus_client_id
+googleplus_client_secret
 twitter_app_key
 twitter_app_secret
