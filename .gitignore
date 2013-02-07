@@ -8,5 +8,7 @@ facebook_app_id_local
 facebook_app_secret_local
 googleplus_client_id
 googleplus_client_secret
+googleplus_client_id_local
+googleplus_client_secret_local
 twitter_app_key
 twitter_app_secret
