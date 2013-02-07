@@ -84,12 +84,13 @@ class Source(Base):
     """
     raise NotImplementedError()
 
-  def get_posts(self, scan_url):
+  def get_posts(self, migration, scan_url):
     """Fetches a page of Post instances using the given source API URL.
 
     To be implemented by subclasses.
 
     Args:
+      migration: Migration
       scan_url: string, the source API URL to fetch the current page of posts
 
     Returns:

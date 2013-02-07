@@ -69,6 +69,7 @@ class Twitter(models.Source):
     """Fetches a page of tweets.
 
     Args:
+      migration: Migration
       scan_url: string, the API URL to fetch the current page of tweets. If None,
         starts at the beginning.
 

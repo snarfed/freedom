@@ -5,11 +5,12 @@
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
 
 import json
+import httplib2
 import logging
 import urllib
 import urlparse
 
-from activitystreams import googleplus as as_googleplus
+# from activitystreams import googleplus as as_googleplus
 import appengine_config
 import models
 
@@ -24,6 +25,7 @@ from oauth2client.appengine import OAuth2Decorator
 from oauth2client.appengine import StorageByKeyName
 from google.appengine.api import memcache
 from google.appengine.api import urlfetch
+from google.appengine.api import users
 from google.appengine.ext import db
 
 OAUTH_CALLBACK = '%s://%s/googleplus/oauth2callback?dest=%%s' % (appengine_config.SCHEME,
@@ -43,35 +45,33 @@ class GooglePlus(models.Source):
 
   DOMAIN = 'googleplus.com'
 
-  # Google+ OAuth 1.0A access token for this account
-  # https://dev.googleplus.com/docs/auth/3-legged-authorization
-  token_key = db.StringProperty()
-  token_secret = db.StringProperty()
+  name = db.StringProperty(required=True)
+  # the App Engine user id, ie users.get_current_user().user_id()
+  gae_user_id = db.StringProperty(required=True)
 
   def display_name(self):
     return self.key().name()
 
   @staticmethod
-  def new(handler, token_key=None, token_secret=None):
+  def new(handler, user):
     """Creates and returns a GooglePlus instance for the authenticated user.
 
     Args:
       handler: the current webapp2.RequestHandler
+      user: dict, decoded JSON object representing the current user
     """
-    tw = as_googleplus.GooglePlus(handler)
-    me = tw.get_actor(access_token_key=token_key,
-                      access_token_secret=token_secret)
     return GooglePlus.get_or_insert(
-      me['username'],
-      token_key=token_key,
-      token_secret=token_secret,
-      picture=me['image']['url'],
-      url=me['url'])
+      user['id'],
+      gae_user_id=users.get_current_user(),
+      name=user['displayName'],
+      picture=user['image']['url'],
+      url=user['url'])
 
   def get_posts(self, migration, scan_url=None):
     """Fetches a page of posts.
 
     Args:
+      migration: Migration
       scan_url: string, the API URL to fetch the current page of posts. If None,
         starts at the beginning.
 
@@ -88,15 +88,27 @@ class GooglePlus(models.Source):
     # Don't publish posts from these applications
     APPLICATION_BLACKLIST = ('Likes', 'Links', 'googleplusfeed')
 
-    if not scan_url:
-      scan_url = API_POSTS_URL % self.key().name()
-    tw = as_googleplus.GooglePlus(None)
-    resp = json.loads(tw.urlfetch(scan_url,
-                                  access_token_key=self.token_key,
-                                  access_token_secret=self.token_secret))
+    # get this user's OAuth credentials
+    credentials = StorageByKeyName(CredentialsModel, self.gae_user_id,
+                                   'credentials').get()
+    if not credentials:
+      logging.error('Giving up: credentials not found for user id %s.',
+                    self.gae_user_id)
+      self.error(299)
+      return
 
-    posts = []
-    for post in resp:
+    # TODO: convert scan_url to paging param(s)
+    # if not scan_url:
+    #   scan_url = API_POSTS_URL % self.key().name()
+    # gp = as_googleplus.GooglePlus(None)
+    # resp = json.loads(gp.urlfetch(scan_url))
+
+    # fetch the json stream and convert it to atom
+    # TODO: switch to collection public if dogfood access doesn't work
+    posts = json_service.activities().list(userId='me', collection='user')\
+        .execute(credentials.authorize(httplib2.Http()))
+
+    for post in posts:
       id = post['id']
       app = post.get('source')
       if app and app in APPLICATION_BLACKLIST:
@@ -104,15 +116,15 @@ class GooglePlus(models.Source):
         continue
 
       posts.append(Post(key_name_parts=(str(id), migration.key().name()),
-                          json_data=json.dumps(post)))
+                        json_data=json.dumps(post)))
 
     next_scan_url = None
-    if posts:
-      scan_url + '&max_id=%s' % posts[-1].id()
-    # XXX remove
-    if posts and tw.rfc2822_to_iso8601(posts[-1].data()['created_at']) < '2013--01-01':
-      next_scan_url = None
-    # XXX
+    # if posts:
+    #   scan_url + '&max_id=%s' % posts[-1].id()
+    # # XXX remove
+    # if posts and posts[-1].data()['created_time'] < '2013--01-01':
+    #   next_scan_url = None
+    # # XXX
     return posts, next_scan_url
 
 
@@ -123,16 +135,17 @@ class GooglePlusPost(models.Migratable):
 
   def to_activity(self):
     """Returns an ActivityStreams activity dict for this post."""
-    return as_googleplus.GooglePlus(None).post_to_activity(self.data())
+    return self.data()
+    # return as_googleplus.GooglePlus(None).post_to_activity(self.data())
 
   def get_comments(self):
-    """Returns an iterable of Reply instances for replies to this post."""
+    """Returns an iterable of GooglePlusComments for replies to this post."""
     # TODO: need to do a search for this, bridgy style. :/
-    replies = self.data().get('replies', {}).get('data', [])
+    comments = self.data().get('comments', {}).get('data', [])
     migration_key = Post.migration.get_value_for_datastore(self)
-    return (Reply(key_name_parts=(r['id'], migration_key.name()),
-                  json_data=json.dumps(r))
-            for r in replies)
+    return (GooglePlusComment(key_name_parts=(c['id'], migration_key.name()),
+                              json_data=json.dumps(r))
+            for c in comments)
 
 
 class GooglePlusComment(Post):
@@ -149,7 +162,7 @@ class AddGooglePlus(webapp2.RequestHandler):
   """
   @oauth.oauth_required
   def post(self):
-    # get the current user's Google+ id
+    # get the current user
     try:
       me = json_service.people().get(userId='me').execute(oauth.http())
     except HttpError:
@@ -159,23 +172,9 @@ class AddGooglePlus(webapp2.RequestHandler):
 
     logging.debug('Got one person: %r' % me)
 
-    gp = GooglePlus.new(self, token_key=access_token.key,
-                        token_secret=access_token.secret)
+    gp = GooglePlus.new(self, me)
     self.redirect('/?dest=%s&source=%s' % (self.request.get('dest'),
                                            urllib.quote(str(gp.key()))))
-
-    #
-    credentials = StorageByKeyName(CredentialsModel, user.gae_user_id,
-                                   'credentials').get()
-    if not credentials:
-      logging.warning('Credentials not found for user id %s', user.gae_user_id)
-      self.error(403)
-      return
-
-    # fetch the json stream and convert it to atom
-    stream = json_service.activities().list(userId='me', collection='stream')\
-        .execute(credentials.authorize(httplib2.Http()))
-
 
 
 application = webapp2.WSGIApplication([

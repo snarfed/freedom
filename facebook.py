@@ -88,6 +88,7 @@ class Facebook(models.Source):
     """Fetches a page of posts.
 
     Args:
+      migration: Migration
       scan_url: string, the API URL to fetch the current page of posts. If None,
         starts at the beginning.
 
