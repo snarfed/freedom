@@ -1,9 +1,6 @@
 [submodule "activitystreams"]
 	path = activitystreams
 	url = git@github.com:snarfed/activitystreams-unofficial.git
-[submodule "httplib2"]
-	path = httplib2
-	url = git@github.com:adamjmcgrath/httplib2.git
 [submodule "google-api-python-client"]
 	path = google-api-python-client
 	url = git@github.com:musicmetric/google-api-python-client.git
