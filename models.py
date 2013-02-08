@@ -66,9 +66,6 @@ class Source(Base):
   Each concrete source type should subclass this.
   """
 
-  # human-readable name for this source type. subclasses should override.
-  TYPE_NAME = None
-
   url = db.LinkProperty()
   picture = db.LinkProperty()
 

@@ -17,12 +17,20 @@ handlers:
   upload: static/favicon.ico
 
 # dynamic
+- url: /blogger/.*
+  script: blogger.application
+  secure: always
+
 - url: /facebook/.*
   script: facebook.application
   secure: always
 
 - url: /googleplus/.*
   script: googleplus.application
+  secure: always
+
+- url: /tumblr/.*
+  script: tumblr.application
   secure: always
 
 - url: /twitter/.*

@@ -19,19 +19,15 @@ from webutil import webapp2
 
 from apiclient import discovery
 from apiclient.errors import HttpError
-from apiclient.model import BaseModel
 from oauth2client.appengine import CredentialsModel
 from oauth2client.appengine import OAuth2Decorator
 from oauth2client.appengine import StorageByKeyName
-from google.appengine.api import memcache
-from google.appengine.api import urlfetch
 from google.appengine.api import users
 from google.appengine.ext import db
 
-OAUTH_CALLBACK = '%s://%s/googleplus/oauth2callback?dest=%%s' % (appengine_config.SCHEME,
-                                                                 appengine_config.HOST)
 
-
+# service names and versions:
+# https://developers.google.com/api-client-library/python/reference/supported_apis
 json_service = discovery.build('plus', 'v1')
 oauth = OAuth2Decorator(
   client_id=appengine_config.GOOGLEPLUS_CLIENT_ID,
@@ -164,11 +160,7 @@ class GooglePlusComment(models.Migratable):
 
 
 class AddGooglePlus(webapp2.RequestHandler):
-  """Starts three-legged OAuth with Google+.
-
-  Fetches an OAuth request token, then redirects to Google+'s auth page to
-  request an access token.
-  """
+  """Adds a Google+ account. Authenticates via OAuth if necessary."""
   @oauth.oauth_required
   def get(self):
     # get the current user

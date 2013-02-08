@@ -26,8 +26,6 @@ from google.appengine.ext import db
 class WordPress(models.Destination):
   """A WordPress blog. The key name is the XML-RPC URL."""
 
-  TYPE_NAME = 'WordPress'
-
   blog_id = db.IntegerProperty(required=True)
   username = db.StringProperty(required=True)
   password = db.StringProperty(required=True)
