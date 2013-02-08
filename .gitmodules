@@ -7,3 +7,6 @@
 [submodule "httplib2_module"]
 	path = httplib2_module
 	url = git@github.com:adamjmcgrath/httplib2.git
+[submodule "python-gflags"]
+	path = python-gflags
+	url = git@github.com:wishabi/python-gflags.git
