@@ -10,3 +10,15 @@
 [submodule "python-gflags"]
 	path = python-gflags
 	url = git@github.com:wishabi/python-gflags.git
+[submodule "tumblpy_module"]
+	path = tumblpy_module
+	url = git@github.com:michaelhelmick/python-tumblpy.git
+[submodule "requests_module"]
+	path = requests_module
+	url = git@github.com:kennethreitz/requests.git
+[submodule "requests_oauthlib_module"]
+	path = requests_oauthlib_module
+	url = git@github.com:requests/requests-oauthlib.git
+[submodule "oauthlib_module"]
+	path = oauthlib_module
+	url = git@github.com:idan/oauthlib.git

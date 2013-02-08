@@ -16,6 +16,7 @@ import urlparse
 from activitystreams import activitystreams
 import appengine_config
 import models
+from tumblpy import tumblpy
 from webutil import util
 from webutil import webapp2
 
