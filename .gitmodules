@@ -4,3 +4,6 @@
 [submodule "google-api-python-client"]
 	path = google-api-python-client
 	url = git@github.com:musicmetric/google-api-python-client.git
+[submodule "httplib2_module"]
+	path = httplib2_module
+	url = git@github.com:adamjmcgrath/httplib2.git

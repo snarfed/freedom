@@ -1,4 +1,4 @@
-application: freedom-io-app 
+application: freedom-io-app
 version: 1
 threadsafe: true
 api_version: 1
@@ -44,7 +44,7 @@ handlers:
 - url: /_ah/queue/.*
   script: tasks.application
   login: admin
-  
+
 - url: /
   script: main.application
   secure: always
@@ -57,4 +57,5 @@ skip_files:
 # don't need anything in the submodule subdirs, especially since
 # webapp-improved/lib has over 1k files!
 - ^google-api-python-client/(docs|samples|tests)/.*
+- ^httplib2_module/(doc|python3|ref|test).*
 - ^webutil/webapp-improved/.*/.*
