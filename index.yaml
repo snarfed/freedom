@@ -24,6 +24,20 @@ indexes:
   - name: last_updated
     direction: desc
 
+- kind: GooglePlusComment
+  properties:
+  - name: migration
+  - name: status
+  - name: last_updated
+    direction: desc
+
+- kind: GooglePlusPost
+  properties:
+  - name: migration
+  - name: status
+  - name: last_updated
+    direction: desc
+
 - kind: Reply
   properties:
   - name: migration

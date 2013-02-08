@@ -33,10 +33,6 @@ handlers:
   script: wordpress.application
   secure: always
 
-# - url: /oauth2callback
-#   script: oauth2client/appengine.py
-#   secure: always
-
 - url: /(migrate|migration/.*)
   script: migrations.application
   secure: always

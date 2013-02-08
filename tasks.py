@@ -13,7 +13,7 @@ from webob import exc
 
 # need to import model class definitions since scan creates and saves entities.
 import facebook
-# import googleplus
+import googleplus
 import migrations
 import models
 import twitter

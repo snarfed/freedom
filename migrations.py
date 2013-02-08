@@ -14,7 +14,7 @@ from webutil import handlers
 from webutil import webapp2
 
 import facebook
-# import googleplus
+import googleplus
 import twitter
 import wordpress
 
@@ -44,6 +44,7 @@ class MigrationHandler(handlers.TemplateHandler):
   # map source kind to model classes for that source
   MIGRATABLES = {
     'Facebook': (facebook.FacebookPost, facebook.FacebookComment),
+    'GooglePlus': (googleplus.GooglePlusPost, googleplus.GooglePlusComment),
     'Twitter': (twitter.Tweet, twitter.Reply),
     }
 

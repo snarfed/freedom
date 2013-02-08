@@ -75,8 +75,9 @@ class WordPress(models.Destination):
     # Attach these tags to the WordPress posts.
     POST_TAGS = ['freedom.io']
 
-    obj = post.to_activity()['object']
-    date = util.parse_iso8601(obj['published'])
+    activity = post.to_activity()
+    obj = activity['object']
+    date = util.parse_iso8601(activity['published'])
     location = obj.get('location')
     xmlrpc = XmlRpc(self.xmlrpc_url(), self.blog_id, self.username, self.password,
                     verbose=True, transport=GAEXMLRPCTransport())

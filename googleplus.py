@@ -37,7 +37,8 @@ oauth = OAuth2Decorator(
   client_id=appengine_config.GOOGLEPLUS_CLIENT_ID,
   client_secret=appengine_config.GOOGLEPLUS_CLIENT_SECRET,
   # G+ scopes: https://developers.google.com/+/api/oauth#oauth-scopes
-  scope='https://www.googleapis.com/auth/plus.me')
+  scope='https://www.googleapis.com/auth/plus.me',
+  callback_path='/googleplus/oauth2callback')
 
 
 class GooglePlus(models.Source):
@@ -50,7 +51,7 @@ class GooglePlus(models.Source):
   gae_user_id = db.StringProperty(required=True)
 
   def display_name(self):
-    return self.key().name()
+    return self.name
 
   @staticmethod
   def new(handler, user):
@@ -62,7 +63,7 @@ class GooglePlus(models.Source):
     """
     return GooglePlus.get_or_insert(
       user['id'],
-      gae_user_id=users.get_current_user(),
+      gae_user_id=users.get_current_user().user_id(),
       name=user['displayName'],
       picture=user['image']['url'],
       url=user['url'])
@@ -103,20 +104,22 @@ class GooglePlus(models.Source):
     # gp = as_googleplus.GooglePlus(None)
     # resp = json.loads(gp.urlfetch(scan_url))
 
-    # fetch the json stream and convert it to atom
-    # TODO: switch to collection public if dogfood access doesn't work
-    posts = json_service.activities().list(userId='me', collection='user')\
+    # fetch the json stream and convert it to atom.
+    # (if i use collection 'user' instead of 'public', that would get *all*
+    # posts, not just public posts, but that's not allowed yet. :/ )
+    resp = json_service.activities().list(userId='me', collection='public')\
         .execute(credentials.authorize(httplib2.Http()))
 
-    for post in posts:
+    posts = []
+    for post in resp['items']:
       id = post['id']
       app = post.get('source')
       if app and app in APPLICATION_BLACKLIST:
         logging.info('Skipping post %d', id)
         continue
 
-      posts.append(Post(key_name_parts=(str(id), migration.key().name()),
-                        json_data=json.dumps(post)))
+      posts.append(GooglePlusPost(key_name_parts=(str(id), migration.key().name()),
+                                  json_data=json.dumps(post)))
 
     next_scan_url = None
     # if posts:
@@ -135,20 +138,26 @@ class GooglePlusPost(models.Migratable):
 
   def to_activity(self):
     """Returns an ActivityStreams activity dict for this post."""
-    return self.data()
-    # return as_googleplus.GooglePlus(None).post_to_activity(self.data())
+    activity = self.data()
+
+    # copy id into object if it's not already there
+    obj = activity.get('object', {})
+    if 'id' not in obj:
+      obj['id'] = activity['id']
+
+    return activity
 
   def get_comments(self):
     """Returns an iterable of GooglePlusComments for replies to this post."""
-    # TODO: need to do a search for this, bridgy style. :/
+    # TODO: implement
     comments = self.data().get('comments', {}).get('data', [])
-    migration_key = Post.migration.get_value_for_datastore(self)
+    migration_key = GooglePlusPost.migration.get_value_for_datastore(self)
     return (GooglePlusComment(key_name_parts=(c['id'], migration_key.name()),
                               json_data=json.dumps(r))
             for c in comments)
 
 
-class GooglePlusComment(Post):
+class GooglePlusComment(models.Migratable):
   """A comment. The key name is 'COMMENT_ID MIGRATION_KEY_NAME'."""
 
   TYPE = 'comment'
@@ -161,7 +170,7 @@ class AddGooglePlus(webapp2.RequestHandler):
   request an access token.
   """
   @oauth.oauth_required
-  def post(self):
+  def get(self):
     # get the current user
     try:
       me = json_service.people().get(userId='me').execute(oauth.http())
@@ -180,5 +189,4 @@ class AddGooglePlus(webapp2.RequestHandler):
 application = webapp2.WSGIApplication([
     ('/googleplus/source/add', AddGooglePlus),
     (oauth.callback_path, oauth.callback_handler()),
-#    ('/googleplus/oauth2callback', OAuthCallback),
     ], debug=appengine_config.DEBUG)
