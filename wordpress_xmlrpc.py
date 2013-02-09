@@ -1,4 +1,4 @@
-"""WordPress API code and datastore model classes.
+"""WordPress XML-RPC destination.
 """
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
@@ -337,6 +337,6 @@ class GAEXMLRPCTransport(object):
 
 
 application = webapp2.WSGIApplication([
-    ('/wordpress/dest/add', AddWordPress),
-    ('/wordpress/dest/delete', DeleteWordPress),
+    ('/wordpress_xmlrpc/dest/add', AddWordPress),
+    ('/wordpress_xmlrpc/dest/delete', DeleteWordPress),
     ], debug=appengine_config.DEBUG)

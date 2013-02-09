@@ -1,4 +1,4 @@
-"""Blogger API code and datastore model classes.
+"""Blogger destination.
 """
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
@@ -6,8 +6,6 @@ __author__ = ['Ryan Barrett <freedom@ryanb.org>']
 import logging
 import os
 import re
-import sys
-import xmlrpclib
 import urllib
 import urllib2
 import urlparse

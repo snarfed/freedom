@@ -40,12 +40,22 @@ your choice. Seize your freedom!</p>
         <input id="password" name="password" type="password" />
     </td></tr><tr><td>
   </td></tr></table>
-  <input type="submit" value="Add WordPress">
+  <input type="image" alt="Sign into self-hosted WordPress blog" src="/static/wordpress_button.png" />
+</form>
+<br />
+<form method="post" action="/wordpress_rest/dest/add">
+  <input type="image" alt="Sign in with WordPress.com" src="/static/wordpress_com_button.png" />
+</form>
+<br />
+<form method="post" action="/tumblr/dest/add">
+  <input type="image" alt="Sign in with Tumblr" src="/static/tumblr_button.png" />
+</form>
+<br />
+<form method="post" action="/blogger/dest/add">
+  <input type="image" alt="Sign in with Blogger" src="/static/blogger_button.png" />
 </form>
 </div>
-
 <hr />
-
 <div id="sources"
      {% if source or not dest %} style="background-color: gray" {% endif %}>
 <form method="post" action="/facebook/source/add">

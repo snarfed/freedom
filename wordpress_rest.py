@@ -1,4 +1,4 @@
-"""Tumblr destination.
+"""WordPress REST API destination.
 """
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
@@ -14,7 +14,6 @@ import urlparse
 from activitystreams import activitystreams
 import appengine_config
 import models
-import tumblpy
 from webutil import util
 from webutil import webapp2
 
@@ -22,32 +21,28 @@ from google.appengine.api import urlfetch
 from google.appengine.ext import db
 
 
-# http://www.tumblr.com/oauth/apps
-TUMBLR_APP_KEY = read('tumblr_app_key')
-TUMBLR_APP_SECRET = read('tumblr_app_secret')
-
-# OAUTH_CALLBACK = '%s://%s/tumblr/oauth_callback?dest=%%s' % (appengine_config.SCHEME,
-#                                                              appengine_config.HOST)
-# API_USER_INFO_URL = 'http://api.tumblr.com/v2/user/info'
+# https://developer.wordpress.com/apps/
+WPCOM_CLIENT_ID = read('wordpress.com_client_id')
+WPCOM_CLIENT_SECRET = read('wordpress.com_client_secret')
 
 
-class Tumblr(models.Destination):
-  """A Tumblr blog. The key name is the hostname."""
+class WordPress(models.Destination):
+  """A WordPress blog. The key name is the XML-RPC URL."""
 
   oauth_token = db.StringProperty(required=True)
   oauth_token_secret = db.StringProperty(required=True)
 
   def display_name(self):
-    return self.key().name()
+    return util.domain_from_link(self.xmlrpc_url())
 
   @classmethod
   def new(cls, handler):
-    """Creates and saves a Tumblr entity based on query parameters.
+    """Creates and saves a WordPress entity based on query parameters.
 
     Args:
       handler: the current webapp.RequestHandler
 
-    Returns: Tumblr
+    Returns: WordPress
     """
     properties = dict(handler.request.params)
 
@@ -60,7 +55,7 @@ class Tumblr(models.Destination):
     assert 'username' in properties
     assert 'password' in properties
 
-    return Tumblr.get_or_insert(xmlrpc_url, **properties)
+    return WordPress.get_or_insert(xmlrpc_url, **properties)
 
   def publish_post(self, post):
     """Publishes a post.
@@ -68,10 +63,10 @@ class Tumblr(models.Destination):
     Args:
       post: post entity
 
-    Returns: string, the Tumblr post id
+    Returns: string, the WordPress post id
     """
     # TODO: expose as option
-    # Attach these tags to the Tumblr posts.
+    # Attach these tags to the WordPress posts.
     POST_TAGS = ['freedom.io']
 
     activity = post.to_activity()
@@ -110,7 +105,7 @@ class Tumblr(models.Destination):
     content = activitystreams.render_html(obj)
 
     # post!
-    # http://codex.tumblr.org/XML-RPC_Tumblr_API/Posts#wp.newPost
+    # http://codex.wordpress.org/XML-RPC_WordPress_API/Posts#wp.newPost
     new_post_params = {
       'post_type': 'post',
       'post_status': 'publish',
@@ -121,7 +116,7 @@ class Tumblr(models.Destination):
       'post_date': date,
       'comment_status': 'open',
       # WP post tags are now implemented as taxonomies:
-      # http://codex.tumblr.org/XML-RPC_Tumblr_API/Categories_%26_Tags
+      # http://codex.wordpress.org/XML-RPC_WordPress_API/Categories_%26_Tags
       'terms_names': {'post_tag': POST_TAGS},
       }
     logging.info('Sending newPost: %r', new_post_params)
@@ -134,7 +129,7 @@ class Tumblr(models.Destination):
     Args:
       comment: comment entity
 
-    Returns: string, the Tumblr comment id
+    Returns: string, the WordPress comment id
     """
     obj = comment.to_activity()['object']
     author = obj.get('author', {})
@@ -169,13 +164,13 @@ class Tumblr(models.Destination):
 
 
 # TODO: unify with other dests, sources?
-class AddTumblr(webapp2.RequestHandler):
+class AddWordPress(webapp2.RequestHandler):
   def post(self):
-    t = tumblpy.Tumblpy(app_key=TUMBLR_APP_KEY,
-                        app_secret=TUMBLR_APP_SECRET,
+    t = tumblpy.Tumblpy(app_key=WORDPRESS_APP_KEY,
+                        app_secret=WORDPRESS_APP_SECRET,
                         callback_url=)
 
-    wp = Tumblr.new(self)
+    wp = WordPress.new(self)
     wp.save()
     self.redirect('/?dest=%s' % urllib.quote(str(wp.key())))
 
@@ -186,9 +181,9 @@ class AddTumblr(webapp2.RequestHandler):
     # self.redirect(auth_url)
 
 
-class DeleteTumblr(webapp2.RequestHandler):
+class DeleteWordPress(webapp2.RequestHandler):
   def post(self):
-    site = Tumblr.get(self.request.params['id'])
+    site = WordPress.get(self.request.params['id'])
     # TODO: remove tasks, etc.
     msg = 'Deleted %s: %s' % (site.type_display_name(), site.display_name())
     site.delete()
@@ -228,7 +223,7 @@ class OAuthCallback(webapp2.RequestHandler):
 
 
 application = webapp2.WSGIApplication([
-    ('/tumblr/dest/add', AddTumblr),
-    ('/tumblr/dest/delete', DeleteTumblr),
-    (OAUTH_CALLBACK_URL, OAuthCallback),
+    ('/wordpress_rest/dest/add', AddWordPress),
+    ('/wordpress_rest/dest/delete', DeleteWordPress),
+    ('/wordpress_rest/oauth_callback', OauthCallback),
     ], debug=appengine_config.DEBUG)
