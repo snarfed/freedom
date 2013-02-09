@@ -16,7 +16,6 @@ from webutil import webapp2
 import facebook
 import googleplus
 import twitter
-import wordpress
 
 from google.appengine.api import taskqueue
 from google.appengine.ext import db
