@@ -47,9 +47,22 @@ your choice. Seize your freedom!</p>
   <input type="image" alt="Sign in with WordPress.com" src="/static/wordpress_com_button.png" />
 </form>
 <br />
-<form method="post" action="/tumblr/dest/add">
+
+<form method="post" action="/tumblr/dest/connect">
   <input type="image" alt="Sign in with Tumblr" src="/static/tumblr_button.png" />
 </form>
+{% if tumblr_username %}
+<form method="post" action="/tumblr/dest/add">
+  <input type="hidden" name="tumblr_username" value="{{ tumblr_username }}" />
+  <input type="hidden" name="oauth_token" value="{{ oauth_token }}" />
+  {% for host in tumblr_hostnames %}
+    <input type="radio" name="host" id="{{ host }}" value="{{ host }}" />
+    <label for="{{ host }}">{{ host }}</label><br />
+  {% endfor %}
+<input type="submit" value="Use this blog" />
+</form>
+{% endif %}
+
 <br />
 <form method="post" action="/blogger/dest/add">
   <input type="image" alt="Sign in with Blogger" src="/static/blogger_button.png" />

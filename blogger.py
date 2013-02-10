@@ -192,7 +192,7 @@ class AddBlogger(webapp2.RequestHandler):
 
     gp = GooglePlus.new(self, me)
     self.redirect('/?dest=%s&source=%s' % (self.request.get('dest'),
-                                           urllib.quote(str(gp.key()))))
+                                           str(gp.key())))
 
 
 # TODO: unify with other dests, sources?
@@ -200,7 +200,7 @@ class AddBlogger(webapp2.RequestHandler):
   def post(self):
     wp = Blogger.new(self)
     wp.save()
-    self.redirect('/?dest=%s' % urllib.quote(str(wp.key())))
+    self.redirect('/?dest=%s' % str(wp.key()))
 
 
 class DeleteBlogger(webapp2.RequestHandler):

@@ -20,47 +20,53 @@ from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
+from google.appengine.ext.webapp import template
 
 
 # http://www.tumblr.com/oauth/apps
-TUMBLR_APP_KEY = read('tumblr_app_key')
-TUMBLR_APP_SECRET = read('tumblr_app_secret')
+TUMBLR_APP_KEY = appengine_config.read('tumblr_app_key')
+TUMBLR_APP_SECRET = appengine_config.read('tumblr_app_secret')
 
-# OAUTH_CALLBACK = '%s://%s/tumblr/oauth_callback?dest=%%s' % (appengine_config.SCHEME,
-#                                                              appengine_config.HOST)
+OAUTH_CALLBACK_URL = '%s://%s/tumblr/oauth_callback' % (
+  appengine_config.SCHEME, appengine_config.HOST)
 # API_USER_INFO_URL = 'http://api.tumblr.com/v2/user/info'
+
+
+class TumblrOAuthRequestToken(models.OAuthToken):
+  pass
+
+
+class TumblrOAuthFinalToken(models.OAuthToken):
+  pass
 
 
 class Tumblr(models.Destination):
   """A Tumblr blog. The key name is the hostname."""
 
-  oauth_token = db.StringProperty(required=True)
-  oauth_token_secret = db.StringProperty(required=True)
+  username = db.StringProperty(required=True)
+  # title = db.StringProperty(required=True)
+
+  # Tumblr OAuth 1.0A access token for this account
+  # http://www.tumblr.com/docs/en/api/v2#auth
+  token_key = db.StringProperty(required=True)
+  token_secret = db.StringProperty(required=True)
 
   def display_name(self):
     return self.key().name()
 
   @classmethod
-  def new(cls, handler):
+  def new(cls, handler, **kwargs):
     """Creates and saves a Tumblr entity based on query parameters.
 
     Args:
       handler: the current webapp.RequestHandler
+      kwargs: passed through to the Tumblr() constructor
 
     Returns: Tumblr
     """
-    properties = dict(handler.request.params)
-
-    xmlrpc_url = properties['xmlrpc_url']
-    db.LinkProperty().validate(xmlrpc_url)
-
-    if 'blog_id' not in properties:
-      properties['blog_id'] = 0
-
-    assert 'username' in properties
-    assert 'password' in properties
-
-    return Tumblr.get_or_insert(xmlrpc_url, **properties)
+    return Tumblr.get_or_insert(handler.request.get('host'),
+                                username=handler.request.get('tumblr_username'),
+                                **kwargs)
 
   def publish_post(self, post):
     """Publishes a post.
@@ -169,21 +175,77 @@ class Tumblr(models.Destination):
 
 
 # TODO: unify with other dests, sources?
+class ConnectTumblr(webapp2.RequestHandler):
+  def post(self):
+    tp = tumblpy.Tumblpy(app_key=TUMBLR_APP_KEY,
+                         app_secret=TUMBLR_APP_SECRET,
+                         callback_url=OAUTH_CALLBACK_URL)
+    auth_props = tp.get_authentication_tokens()
+
+    # store the request token for later use in the callback handler
+    TumblrOAuthRequestToken.new(auth_props['oauth_token'],
+                                auth_props['oauth_token_secret'])
+    auth_url = auth_props['auth_url']
+    logging.info('Generated request token, redirecting to Tumblr: %s', auth_url)
+    self.redirect(auth_url)
+
+
+class OAuthCallback(webapp2.RequestHandler):
+  """OAuth callback. Fetches the user's blogs and re-renders the front page."""
+  def get(self):
+    # lookup the request token
+    token_key = self.request.get('oauth_token')
+    token = TumblrOAuthRequestToken.get_by_key_name(token_key)
+    if token is None:
+      raise exc.HTTPBadRequest('Invalid oauth_token: %s' % token_key)
+
+    # generate and store the final token
+    tp = tumblpy.Tumblpy(app_key=TUMBLR_APP_KEY,
+                         app_secret=TUMBLR_APP_SECRET,
+                         oauth_token=token_key,
+                         oauth_token_secret=token.secret)
+    auth_token = tp.get_authorized_tokens(self.request.params['oauth_verifier'])
+    final_token = auth_token['oauth_token']
+    final_secret = auth_token['oauth_token_secret']
+    TumblrOAuthFinalToken.new(final_token, final_secret)
+
+    # get the user's blogs
+    tp = tumblpy.Tumblpy(app_key=TUMBLR_APP_KEY,
+                         app_secret=TUMBLR_APP_SECRET,
+                         oauth_token=final_token,
+                         oauth_token_secret=final_secret)
+    resp = tp.post('user/info')
+    logging.debug(resp)
+    user = resp['user']
+    hostnames = [util.domain_from_link(b['url']) for b in user['blogs']]
+    # titles = [b[title] for b in user['blogs']]
+
+    # redirect so that refreshing the page doesn't try to regenerate the oauth
+    # token, which won't work.
+    self.redirect('/?' + urllib.urlencode({
+          'tumblr_username': user['name'],
+          'tumblr_hostnames': hostnames,
+          # 'tumblr_titles': titles,
+          'oauth_token': auth_token['oauth_token'],
+          }, True))
+
+
 class AddTumblr(webapp2.RequestHandler):
   def post(self):
-    t = tumblpy.Tumblpy(app_key=TUMBLR_APP_KEY,
-                        app_secret=TUMBLR_APP_SECRET,
-                        callback_url=)
+    # lookup final OAuth token
+    token_key = self.request.get('oauth_token')
+    token = TumblrOAuthFinalToken.get_by_key_name(token_key)
+    if token is None:
+      raise exc.HTTPBadRequest('Invalid oauth_token: %s' % oauth_token)
 
-    wp = Tumblr.new(self)
-    wp.save()
-    self.redirect('/?dest=%s' % urllib.quote(str(wp.key())))
+    tumblr = Tumblr.new(self,
+                        # title=self.request.get('title'),
+                        token_key=token.token_key(),
+                        token_secret=token.secret)
 
-    # # store the request token for later use in the callback handler
-    # OAuthRequestToken(key_name=auth.request_token.key,
-    #                   token_secret=auth.request_token.secret).put()
-    # logging.info('Generated request token, redirecting to Twitter: %s', auth_url)
-    # self.redirect(auth_url)
+    # redirect so that refreshing the page doesn't try to regenerate the oauth
+    # token, which won't work.
+    self.redirect('/?dest=%s' % str(tumblr.key()))
 
 
 class DeleteTumblr(webapp2.RequestHandler):
@@ -195,40 +257,9 @@ class DeleteTumblr(webapp2.RequestHandler):
     self.redirect('/?msg=' + msg)
 
 
-class OAuthCallback(webapp2.RequestHandler):
-  """The OAuth callback. Fetches an access token and redirects to the front page."""
-  def get(self):
-    oauth_token = self.request.get('oauth_token', None)
-    oauth_verifier = self.request.get('oauth_verifier', None)
-    if oauth_token is None:
-      raise exc.HTTPBadRequest('Missing required query parameter oauth_token.')
-
-    # Lookup the request token
-    request_token = OAuthRequestToken.get_by_key_name(oauth_token)
-    if request_token is None:
-      raise exc.HTTPBadRequest('Invalid oauth_token: %s' % oauth_token)
-
-    # Rebuild the auth handler
-    auth = tweepy.OAuthHandler(appengine_config.TWITTER_APP_KEY,
-                               appengine_config.TWITTER_APP_SECRET)
-    auth.set_request_token(request_token.token_key(), request_token.token_secret)
-
-    # Fetch the access token
-    try:
-      access_token = auth.get_access_token(oauth_verifier)
-    except tweepy.TweepError, e:
-      msg = 'Twitter OAuth error, could not get access token: '
-      logging.exception(msg)
-      raise exc.HTTPInternalServerError(msg + `e`)
-
-    tw = Twitter.new(self, token_key=access_token.key,
-                     token_secret=access_token.secret)
-    self.redirect('/?dest=%s&source=%s' % (self.request.get('dest'),
-                                           urllib.quote(str(tw.key()))))
-
-
 application = webapp2.WSGIApplication([
+    ('/tumblr/dest/connect', ConnectTumblr),
+    ('/tumblr/oauth_callback', OAuthCallback),
     ('/tumblr/dest/add', AddTumblr),
     ('/tumblr/dest/delete', DeleteTumblr),
-    (OAUTH_CALLBACK_URL, OAuthCallback),
     ], debug=appengine_config.DEBUG)

@@ -177,8 +177,8 @@ class AddGooglePlus(webapp2.RequestHandler):
     gp = GooglePlus.new(self, me)
 
     # redirect so that refreshing doesn't rewrite this GooglePlus entity
-    self.redirect('/' + urllib.urlencode({'dest': self.request.get('dest'),
-                                          'source': urllib.quote(str(gp.key()))}))
+    self.redirect('/?' + urllib.urlencode({'dest': self.request.get('dest'),
+                                           'source': urllib.quote(str(gp.key()))}))
 
 
 application = webapp2.WSGIApplication([

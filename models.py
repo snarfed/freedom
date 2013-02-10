@@ -235,3 +235,20 @@ class Migratable(Base):
     if self.parsed_data is None:
       self.parsed_data = json.loads(self.json_data)
     return self.parsed_data
+
+
+class OAuthToken(db.Model):
+  """An OAuth 1.0A token. Key name is the token key.
+
+  Each OAuth provider should have its own subclass(es) to prevent collisions.
+  """
+  secret = db.StringProperty(required=True)
+
+  @classmethod
+  def new(cls, key, secret):
+    token = cls(key_name=key, secret=secret)
+    token.put()
+    return token
+
+  def token_key(self):
+    return self.key().name()

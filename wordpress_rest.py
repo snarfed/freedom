@@ -172,7 +172,7 @@ class AddWordPress(webapp2.RequestHandler):
 
     wp = WordPress.new(self)
     wp.save()
-    self.redirect('/?dest=%s' % urllib.quote(str(wp.key())))
+    self.redirect('/?dest=%s' % str(wp.key()))
 
     # # store the request token for later use in the callback handler
     # OAuthRequestToken(key_name=auth.request_token.key,
@@ -199,7 +199,7 @@ class OAuthCallback(webapp2.RequestHandler):
       raise exc.HTTPBadRequest('Missing required query parameter oauth_token.')
 
     # Lookup the request token
-    request_token = OAuthRequestToken.get_by_key_name(oauth_token)
+    request_token = WordPressOAuthRequestToken.get_by_key_name(oauth_token)
     if request_token is None:
       raise exc.HTTPBadRequest('Invalid oauth_token: %s' % oauth_token)
 
@@ -219,7 +219,7 @@ class OAuthCallback(webapp2.RequestHandler):
     tw = Twitter.new(self, token_key=access_token.key,
                      token_secret=access_token.secret)
     self.redirect('/?dest=%s&source=%s' % (self.request.get('dest'),
-                                           urllib.quote(str(tw.key()))))
+                                           str(tw.key())))
 
 
 application = webapp2.WSGIApplication([

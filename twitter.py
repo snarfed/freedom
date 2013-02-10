@@ -191,8 +191,8 @@ class OAuthCallback(webapp2.RequestHandler):
 
     # redirect so that refreshing the page doesn't try to regenerate this oauth
     # token (which won't work).
-    self.redirect('/' + urllib.urlencode({'dest': self.request.get('dest'),
-                                          'source': urllib.quote(str(tw.key()))}))
+    self.redirect('/?' + urllib.urlencode({'dest': self.request.get('dest'),
+                                           'source': urllib.quote(str(tw.key()))}))
 
 
 application = webapp2.WSGIApplication([

@@ -3,6 +3,8 @@
 
 __author__ = 'Ryan Barrett <freedom@ryanb.org>'
 
+import logging
+
 import appengine_config
 from webutil import handlers
 from webutil import webapp2
@@ -13,9 +15,6 @@ class FrontPage(handlers.TemplateHandler):
 
   def template_file(self):
     return 'templates/index.html'
-
-  def template_vars(self):
-    return self.request.params
 
 
 application = webapp2.WSGIApplication(
