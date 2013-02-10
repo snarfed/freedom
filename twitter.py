@@ -29,7 +29,7 @@ API_TWEETS_URL = ('https://api.twitter.com/1.1/statuses/user_timeline.json'
                   '?include_entities=true&screen_name=%s')
 
 
-class TwitterOAuthRequestToken(models.OAuthRequestToken):
+class TwitterOAuthRequestToken(models.OAuthToken):
   pass
 
 
@@ -188,9 +188,11 @@ class OAuthCallback(webapp2.RequestHandler):
 
     tw = Twitter.new(self, token_key=access_token.key,
                      token_secret=access_token.secret)
-    vars = {'dest': self.request.get('dest'),
-            'source': urllib.quote(str(tw.key()))}
-    self.response.out.write(template.render('templates/index.html', vars))
+
+    # redirect so that refreshing the page doesn't try to regenerate this oauth
+    # token (which won't work).
+    self.redirect('/?dest=%s&source=%s' % (self.request.get('dest'),
+                                           urllib.quote(str(tw.key()))))
 
 
 application = webapp2.WSGIApplication([

@@ -215,9 +215,11 @@ class GotAuthCode(webapp2.RequestHandler):
     params = urlparse.parse_qs(resp.content)
 
     fb = Facebook.new(self, access_token=params['access_token'][0])
-    vars = {'dest': self.request.get('state'),
-            'source': urllib.quote(str(fb.key()))}
-    self.response.out.write(template.render('templates/index.html', vars))
+
+    # redirect so that refreshing the page doesn't try to get a new access token
+    # and rewrite the Facebook entity.
+    self.redirect('/?dest=%s&source=%s' % (self.request.get('state'),
+                                           urllib.quote(str(fb.key()))))
 
 
 application = webapp2.WSGIApplication([
