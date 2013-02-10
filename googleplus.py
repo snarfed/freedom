@@ -24,6 +24,7 @@ from oauth2client.appengine import OAuth2Decorator
 from oauth2client.appengine import StorageByKeyName
 from google.appengine.api import users
 from google.appengine.ext import db
+from google.appengine.ext.webapp import template
 
 
 # service names and versions:
@@ -174,8 +175,9 @@ class AddGooglePlus(webapp2.RequestHandler):
     logging.debug('Got one person: %r' % me)
 
     gp = GooglePlus.new(self, me)
-    self.redirect('/?dest=%s&source=%s' % (self.request.get('dest'),
-                                           urllib.quote(str(gp.key()))))
+    vars = {'dest': self.request.get('dest'),
+            'source': urllib.quote(str(gp.key()))}
+    self.response.out.write(template.render('templates/index.html', vars))
 
 
 application = webapp2.WSGIApplication([

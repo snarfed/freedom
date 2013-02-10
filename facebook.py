@@ -19,6 +19,8 @@ from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
+from google.appengine.ext.webapp import template
+
 
 # facebook api url templates. can't (easily) use urllib.urlencode() because i
 # want to keep the %(...)s placeholders as is and fill them in later in code.
@@ -213,8 +215,9 @@ class GotAuthCode(webapp2.RequestHandler):
     params = urlparse.parse_qs(resp.content)
 
     fb = Facebook.new(self, access_token=params['access_token'][0])
-    self.redirect('/?dest=%s&source=%s' % (self.request.get('state'),
-                                           urllib.quote(str(fb.key()))))
+    vars = {'dest': self.request.get('state'),
+            'source': urllib.quote(str(fb.key()))}
+    self.response.out.write(template.render('templates/index.html', vars))
 
 
 application = webapp2.WSGIApplication([

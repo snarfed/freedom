@@ -8,6 +8,7 @@ import json
 import logging
 import urllib
 import urlparse
+from webob import exc
 
 from activitystreams import twitter as as_twitter
 import appengine_config
@@ -19,6 +20,8 @@ from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
+from google.appengine.ext.webapp import template
+
 
 OAUTH_CALLBACK = '%s://%s/twitter/oauth_callback?dest=%%s' % (appengine_config.SCHEME,
                                                               appengine_config.HOST)
@@ -26,13 +29,8 @@ API_TWEETS_URL = ('https://api.twitter.com/1.1/statuses/user_timeline.json'
                   '?include_entities=true&screen_name=%s')
 
 
-class OAuthRequestToken(db.Model):
-  """An OAuth request (ie intermediate) token. Key name is the token key.
-  """
-  token_secret = db.StringProperty(required=True)
-
-  def token_key(self):
-    return self.key().name()
+class TwitterOAuthRequestToken(models.OAuthRequestToken):
+  pass
 
 
 class Twitter(models.Source):
@@ -157,8 +155,7 @@ class AddTwitter(webapp2.RequestHandler):
       raise exc.HTTPInternalServerError(msg + `e`)
 
     # store the request token for later use in the callback handler
-    OAuthRequestToken(key_name=auth.request_token.key,
-                      token_secret=auth.request_token.secret).put()
+    TwitterOAuthRequestToken.new(auth.request_token.key, auth.request_token.secret)
     logging.info('Generated request token, redirecting to Twitter: %s', auth_url)
     self.redirect(auth_url)
 
@@ -172,14 +169,14 @@ class OAuthCallback(webapp2.RequestHandler):
       raise exc.HTTPBadRequest('Missing required query parameter oauth_token.')
 
     # Lookup the request token
-    request_token = OAuthRequestToken.get_by_key_name(oauth_token)
+    request_token = TwitterOAuthRequestToken.get_by_key_name(oauth_token)
     if request_token is None:
       raise exc.HTTPBadRequest('Invalid oauth_token: %s' % oauth_token)
 
     # Rebuild the auth handler
     auth = tweepy.OAuthHandler(appengine_config.TWITTER_APP_KEY,
                                appengine_config.TWITTER_APP_SECRET)
-    auth.set_request_token(request_token.token_key(), request_token.token_secret)
+    auth.set_request_token(request_token.token_key(), request_token.secret)
 
     # Fetch the access token
     try:
@@ -191,8 +188,9 @@ class OAuthCallback(webapp2.RequestHandler):
 
     tw = Twitter.new(self, token_key=access_token.key,
                      token_secret=access_token.secret)
-    self.redirect('/?dest=%s&source=%s' % (self.request.get('dest'),
-                                           urllib.quote(str(tw.key()))))
+    vars = {'dest': self.request.get('dest'),
+            'source': urllib.quote(str(tw.key()))}
+    self.response.out.write(template.render('templates/index.html', vars))
 
 
 application = webapp2.WSGIApplication([
