@@ -6,10 +6,8 @@ facebook_app_id
 facebook_app_secret
 facebook_app_id_local
 facebook_app_secret_local
-googleplus_client_id
-googleplus_client_secret
-googleplus_client_id_local
-googleplus_client_secret_local
+google_client_id
+google_client_secret
 tumblr_app_key
 tumblr_app_secret
 twitter_app_key
