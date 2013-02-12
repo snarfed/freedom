@@ -28,11 +28,7 @@ import models
 from webutil import util
 from webutil import webapp2
 
-from apiclient import discovery
-from apiclient.errors import HttpError
-from oauth2client.appengine import CredentialsModel
 from oauth2client.appengine import OAuth2Decorator
-from oauth2client.appengine import StorageByKeyName
 from gdata.blogger import client
 from gdata import gauth
 from google.appengine.api import users

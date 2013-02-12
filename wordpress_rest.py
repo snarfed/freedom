@@ -1,9 +1,14 @@
-"""WordPress REST API destination.
+"""WordPress.com REST API destination.
+
+Note that unlike Blogger and Tumblr, WordPress.com's OAuth tokens are *per
+blog*. It asks you which blog to use On its authorization page. So, I don't need
+the extra handler and form in index.html to choose between blogs.
 """
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
 
 import functools
+import json
 import logging
 import os
 import re
@@ -14,6 +19,7 @@ import urlparse
 from activitystreams import activitystreams
 import appengine_config
 import models
+from oauth2client.appengine import OAuth2Decorator
 from webutil import util
 from webutil import webapp2
 
@@ -21,13 +27,34 @@ from google.appengine.api import urlfetch
 from google.appengine.ext import db
 
 
-# https://developer.wordpress.com/apps/
-WPCOM_CLIENT_ID = read('wordpress.com_client_id')
-WPCOM_CLIENT_SECRET = read('wordpress.com_client_secret')
+# https://developer.wordpress.com/docs/api/1/
+API_ME_URL = 'https://public-api.wordpress.com/rest/v1/me/'
+API_SITE_URL = 'https://public-api.wordpress.com/rest/v1/sites/%d'
 
 
-class WordPress(models.Destination):
-  """A WordPress blog. The key name is the XML-RPC URL."""
+# https://developer.wordpress.com/apps/2043/
+if appengine_config.DEBUG:
+  CLIENT_ID = appengine_config.read('wordpress.com_client_id_local')
+  CLIENT_SECRET = appengine_config.read('wordpress.com_client_secret_local')
+else:
+  CLIENT_ID = appengine_config.read('wordpress.com_client_id')
+  CLIENT_SECRET = appengine_config.read('wordpress.com_client_secret')
+
+oauth = OAuth2Decorator(
+  client_id=CLIENT_ID,
+  client_secret=CLIENT_SECRET,
+  # can't find any mention of oauth scope in https://developer.wordpress.com/
+  scope='',
+  auth_uri='https://public-api.wordpress.com/oauth2/authorize',
+  token_uri='https://public-api.wordpress.com/oauth2/token',
+  # wordpress.com doesn't let you use an oauth redirect URL with "local" or
+  # "localhost" anywhere in it. :/ had to use my.dev.com and put this in
+  # /etc/hosts:   127.0.0.1 my.dev.com
+  callback_path='/wordpress_rest/oauth_callback')
+
+
+class WordPressRest(models.Destination):
+  """A WordPress blog accessed via REST API. Currently only wordpress.com."""
 
   oauth_token = db.StringProperty(required=True)
   oauth_token_secret = db.StringProperty(required=True)
@@ -37,12 +64,12 @@ class WordPress(models.Destination):
 
   @classmethod
   def new(cls, handler):
-    """Creates and saves a WordPress entity based on query parameters.
+    """Creates and saves a WordPressRest entity based on query parameters.
 
     Args:
       handler: the current webapp.RequestHandler
 
-    Returns: WordPress
+    Returns: WordPressRest
     """
     properties = dict(handler.request.params)
 
@@ -55,7 +82,7 @@ class WordPress(models.Destination):
     assert 'username' in properties
     assert 'password' in properties
 
-    return WordPress.get_or_insert(xmlrpc_url, **properties)
+    return WordPressRest.get_or_insert(xmlrpc_url, **properties)
 
   def publish_post(self, post):
     """Publishes a post.
@@ -164,66 +191,48 @@ class WordPress(models.Destination):
 
 
 # TODO: unify with other dests, sources?
-class AddWordPress(webapp2.RequestHandler):
+class AddWordPressRest(webapp2.RequestHandler):
+  @oauth.oauth_required
+  def get(self):
+    self.post()
+
+  @oauth.oauth_required
   def post(self):
-    t = tumblpy.Tumblpy(app_key=WORDPRESS_APP_KEY,
-                        app_secret=WORDPRESS_APP_SECRET,
-                        callback_url=)
+    # TODO: the HTTP request that gets an access token also gets the blog id and
+    # url selected by the user:
+    # https://developer.wordpress.com/docs/oauth2/#exchange-code-for-access-token
+    # ideally i'd use that instead of requesting it manually, but it's not
+    # exposed. :/
+    # STATE: actually i do really need this, since it's the only way to see
+    # which blog the user selected. sigh. asked joe gregorio here:
+    # https://plus.google.com/106134299616714031548/posts/XtuGWPzG3Rc
+    http = oauth.http()
+    resp, content = http.request(API_ME_URL)
+    assert resp.status == 200
+    me = json.loads(content)
+    logging.debug('WPCOM me: %s' % me)
 
-    wp = WordPress.new(self)
-    wp.save()
-    self.redirect('/?dest=%s' % str(wp.key()))
+    resp, content = http.request(API_SITE_URL % me['primary_blog'])
+    assert resp.status == 200
+    logging.debug('WPCOM site: %s' % content)
 
-    # # store the request token for later use in the callback handler
-    # OAuthRequestToken(key_name=auth.request_token.key,
-    #                   token_secret=auth.request_token.secret).put()
-    # logging.info('Generated request token, redirecting to Twitter: %s', auth_url)
-    # self.redirect(auth_url)
+    wpr = WordPressRest.new(self)
+    # redirect so that refreshing the page doesn't try to rewrite the Blogger
+    # entity.
+    self.redirect('/?dest=%s' % str(wpr.key()))
 
 
-class DeleteWordPress(webapp2.RequestHandler):
+class DeleteWordPressRest(webapp2.RequestHandler):
   def post(self):
-    site = WordPress.get(self.request.params['id'])
+    site = WordPressRest.get(self.request.params['id'])
     # TODO: remove tasks, etc.
     msg = 'Deleted %s: %s' % (site.type_display_name(), site.display_name())
     site.delete()
     self.redirect('/?msg=' + msg)
 
 
-class OAuthCallback(webapp2.RequestHandler):
-  """The OAuth callback. Fetches an access token and redirects to the front page."""
-  def get(self):
-    oauth_token = self.request.get('oauth_token', None)
-    oauth_verifier = self.request.get('oauth_verifier', None)
-    if oauth_token is None:
-      raise exc.HTTPBadRequest('Missing required query parameter oauth_token.')
-
-    # Lookup the request token
-    request_token = WordPressOAuthRequestToken.get_by_key_name(oauth_token)
-    if request_token is None:
-      raise exc.HTTPBadRequest('Invalid oauth_token: %s' % oauth_token)
-
-    # Rebuild the auth handler
-    auth = tweepy.OAuthHandler(appengine_config.TWITTER_APP_KEY,
-                               appengine_config.TWITTER_APP_SECRET)
-    auth.set_request_token(request_token.token_key(), request_token.token_secret)
-
-    # Fetch the access token
-    try:
-      access_token = auth.get_access_token(oauth_verifier)
-    except tweepy.TweepError, e:
-      msg = 'Twitter OAuth error, could not get access token: '
-      logging.exception(msg)
-      raise exc.HTTPInternalServerError(msg + `e`)
-
-    tw = Twitter.new(self, token_key=access_token.key,
-                     token_secret=access_token.secret)
-    self.redirect('/?dest=%s&source=%s' % (self.request.get('dest'),
-                                           str(tw.key())))
-
-
 application = webapp2.WSGIApplication([
-    ('/wordpress_rest/dest/add', AddWordPress),
-    ('/wordpress_rest/dest/delete', DeleteWordPress),
-    ('/wordpress_rest/oauth_callback', OauthCallback),
+    (oauth.callback_path, oauth.callback_handler()),
+    ('/wordpress_rest/dest/add', AddWordPressRest),
+    ('/wordpress_rest/dest/delete', DeleteWordPressRest),
     ], debug=appengine_config.DEBUG)
