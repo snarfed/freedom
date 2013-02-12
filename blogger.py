@@ -30,52 +30,44 @@ from apiclient.errors import HttpError
 from oauth2client.appengine import CredentialsModel
 from oauth2client.appengine import OAuth2Decorator
 from oauth2client.appengine import StorageByKeyName
+from gdata.blogger import service
+from gdata import gauth
 from google.appengine.api import users
 from google.appengine.ext import db
 
 
-# service names and versions:
-# https://developers.google.com/api-client-library/python/reference/supported_apis
-json_service = discovery.build('blogger', 'v3')
+gdata_service = service.BloggerService()
 oauth = OAuth2Decorator(
-  client_id=appengine_config.GOOGLEPLUS_CLIENT_ID,
-  client_secret=appengine_config.GOOGLEPLUS_CLIENT_SECRET,
+  client_id=appengine_config.GOOGLE_CLIENT_ID,
+  client_secret=appengine_config.GOOGLE_CLIENT_SECRET,
   # https://developers.google.com/blogger/docs/3.0/using#OAuth2Scope
   scope='https://www.googleapis.com/auth/blogger',
   callback_path='/blogger/oauth2callback')
 
 
 class Blogger(models.Destination):
-  """A Blogger blog. The key name is the blog id."""
+  """A Blogger blog. The key name is the blog hostname."""
 
-  domain = db.StringProperty(required=True)
+  owner_name = db.StringProperty(required=True)
   # the App Engine user id, ie users.get_current_user().user_id()
   gae_user_id = db.StringProperty(required=True)
 
   def display_name(self):
-    return self.domain
+    return self.key().name()
 
   @classmethod
-  def new(cls, handler):
+  def new(cls, handler, **kwargs):
     """Creates and saves a Blogger entity based on query parameters.
 
     Args:
       handler: the current webapp.RequestHandler
+      kwargs: passed through to the Blogger() constructor
 
     Returns: Blogger
     """
-    properties = dict(handler.request.params)
-
-    xmlrpc_url = properties['xmlrpc_url']
-    db.LinkProperty().validate(xmlrpc_url)
-
-    if 'blog_id' not in properties:
-      properties['blog_id'] = 0
-
-    assert 'username' in properties
-    assert 'password' in properties
-
-    return Blogger.get_or_insert(xmlrpc_url, **properties)
+    return Blogger.get_or_insert(handler.request.get('host'),
+                                 owner_name=handler.request.get('blogger_owner_name'),
+                                 **kwargs)
 
   def publish_post(self, post):
     """Publishes a post.
@@ -183,31 +175,49 @@ class Blogger(models.Destination):
     return str(comment_id)
 
 
-class AddBlogger(webapp2.RequestHandler):
-  """Adds a Blogger account. Authenticates via OAuth if necessary."""
+class ConnectBlogger(webapp2.RequestHandler):
+  """Connects a Blogger account. Authenticates via OAuth if necessary."""
+  @oauth.oauth_required
+  def post(self):
+    return self.get()
+
   @oauth.oauth_required
   def get(self):
+    # token = gauth.OAuth2Token(
+
     # get the current user
     try:
-      me = json_service.people().get(userId='me').execute(oauth.http())
+      blogs = gdata_service.GetBlogFeed()
     except HttpError:
-      logging.exception('Error calling People.get("me")')
-      self.redirect('/?msg=%s' % urllib.quote('Error accessing Google+ for this account.'))
+      logging.exception('Error getting /feeds/default/blogs')
+      self.redirect('/?msg=%s' % urllib.quote('Error accessing Blogger for this account.'))
       return
 
-    logging.debug('Got one person: %r' % me)
+    logging.debug('Got blogs: %r' % blogs)
+    owner_name = blogs.entry[0].author.name if blogs else None
+    hostnames = []
+    for entry in blogs.entry:
+      for link in entry.link:
+        if link.type == 'text/html':
+          hostnames.append(util.domain_from_link(link.href))
+          break
 
-    gp = GooglePlus.new(self, me)
-    self.redirect('/?dest=%s&source=%s' % (self.request.get('dest'),
-                                           str(gp.key())))
+    # redirect so that refreshing the page doesn't try to regenerate the oauth
+    # token, which won't work.
+    self.redirect('/?' + urllib.urlencode({
+          'blogger_owner_name': user['name'],
+          'blogger_hostnames': hostnames,
+          'oauth_token': auth_token['oauth_token'],
+          }, True))
 
 
 # TODO: unify with other dests, sources?
 class AddBlogger(webapp2.RequestHandler):
   def post(self):
-    wp = Blogger.new(self)
-    wp.save()
-    self.redirect('/?dest=%s' % str(wp.key()))
+    bl = Blogger.new(self)
+    # redirect so that refreshing the page doesn't try to rewrite the Blogger
+    # entity.
+    self.redirect('/?dest=%s' % str(bl.key()))
 
 
 class DeleteBlogger(webapp2.RequestHandler):
@@ -220,6 +230,8 @@ class DeleteBlogger(webapp2.RequestHandler):
 
 
 application = webapp2.WSGIApplication([
+    ('/blogger/dest/connect', ConnectBlogger),
+    (oauth.callback_path, oauth.callback_handler()),
     ('/blogger/dest/add', AddBlogger),
     ('/blogger/dest/delete', DeleteBlogger),
     ], debug=appengine_config.DEBUG)

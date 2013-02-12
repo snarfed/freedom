@@ -66,11 +66,25 @@
 {% endif %}
 
 <br />
-<form method="post" action="/blogger/dest/add">
+<form method="post" action="/blogger/dest/connect">
   <input type="image" alt="Sign in with Blogger" src="/static/blogger_button.png" />
 </form>
+{% if blogger_owner_name %}
+<form method="post" action="/blogger/dest/add">
+  <input type="hidden" name="blogger_owner_name" value="{{ blogger_owner_name }}" />
+  <input type="hidden" name="oauth_token" value="{{ oauth_token }}" />
+  {% for host in blogger_hostnames %}
+    <input type="radio" name="host" id="{{ host }}" value="{{ host }}" />
+    <label for="{{ host }}">{{ host }}</label><br />
+  {% endfor %}
+<input type="submit" value="Use this blog" />
+</form>
+{% endif %}
+
 </div>
+
 <hr />
+
 <div id="sources"
      {% if source or not dest %} style="background-color: gray" {% endif %}>
 <form method="post" action="/facebook/source/add">

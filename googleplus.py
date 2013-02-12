@@ -31,8 +31,8 @@ from google.appengine.ext.webapp import template
 # https://developers.google.com/api-client-library/python/reference/supported_apis
 json_service = discovery.build('plus', 'v1')
 oauth = OAuth2Decorator(
-  client_id=appengine_config.GOOGLEPLUS_CLIENT_ID,
-  client_secret=appengine_config.GOOGLEPLUS_CLIENT_SECRET,
+  client_id=appengine_config.GOOGLE_CLIENT_ID,
+  client_secret=appengine_config.GOOGLE_CLIENT_SECRET,
   # G+ scopes: https://developers.google.com/+/api/oauth#oauth-scopes
   scope='https://www.googleapis.com/auth/plus.me',
   callback_path='/googleplus/oauth2callback')

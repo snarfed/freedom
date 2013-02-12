@@ -29,7 +29,6 @@ TUMBLR_APP_SECRET = appengine_config.read('tumblr_app_secret')
 
 OAUTH_CALLBACK_URL = '%s://%s/tumblr/oauth_callback' % (
   appengine_config.SCHEME, appengine_config.HOST)
-# API_USER_INFO_URL = 'http://api.tumblr.com/v2/user/info'
 
 
 class TumblrOAuthRequestToken(models.OAuthToken):
@@ -41,7 +40,7 @@ class TumblrOAuthFinalToken(models.OAuthToken):
 
 
 class Tumblr(models.Destination):
-  """A Tumblr blog. The key name is the hostname."""
+  """A Tumblr blog. The key name is the blog hostname."""
 
   username = db.StringProperty(required=True)
   # title = db.StringProperty(required=True)
