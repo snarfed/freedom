@@ -5,8 +5,11 @@ https://groups.google.com/d/topic/bloggerdev/jRJKC7jjs6M/discussion
 https://developers.google.com/blogger/docs/3.0/reference/comments
 https://developers.google.com/blogger/docs/2.0/developers_guide
 
-Uses google-api-python-client to auth via OAuth 2. The integration between
-gdata-python-client and google-api-python-client was added here:
+Uses google-api-python-client to auth via OAuth 2. This describes how to get
+gdata-python-client to use an OAuth 2 token from google-api-python-client:
+http://blog.bossylobster.com/2012/12/bridging-oauth-20-objects-between-gdata.html#comment-form
+
+Support was added to gdata-python-client here:
 https://code.google.com/p/gdata-python-client/source/detail?r=ecb1d49b5fbe05c9bc6c8525e18812ccc02badc0
 """
 
@@ -30,18 +33,18 @@ from apiclient.errors import HttpError
 from oauth2client.appengine import CredentialsModel
 from oauth2client.appengine import OAuth2Decorator
 from oauth2client.appengine import StorageByKeyName
-from gdata.blogger import service
+from gdata.blogger import client
 from gdata import gauth
 from google.appengine.api import users
 from google.appengine.ext import db
 
 
-gdata_service = service.BloggerService()
 oauth = OAuth2Decorator(
   client_id=appengine_config.GOOGLE_CLIENT_ID,
   client_secret=appengine_config.GOOGLE_CLIENT_SECRET,
-  # https://developers.google.com/blogger/docs/3.0/using#OAuth2Scope
-  scope='https://www.googleapis.com/auth/blogger',
+  # https://developers.google.com/blogger/docs/2.0/developers_guide_protocol#OAuth2Authorizing
+  # (the scope for the v3 API is https://www.googleapis.com/auth/blogger)
+  scope='http://www.blogger.com/feeds/',
   callback_path='/blogger/oauth2callback')
 
 
@@ -65,9 +68,11 @@ class Blogger(models.Destination):
 
     Returns: Blogger
     """
-    return Blogger.get_or_insert(handler.request.get('host'),
-                                 owner_name=handler.request.get('blogger_owner_name'),
-                                 **kwargs)
+    return Blogger.get_or_insert(
+      handler.request.get('host'),
+      owner_name=handler.request.get('blogger_owner_name'),
+      gae_user_id=users.get_current_user().user_id(),
+      **kwargs)
 
   def publish_post(self, post):
     """Publishes a post.
@@ -183,18 +188,17 @@ class ConnectBlogger(webapp2.RequestHandler):
 
   @oauth.oauth_required
   def get(self):
-    # token = gauth.OAuth2Token(
+    # this must be a client ie subclass of GDClient, since that's what
+    # OAuth2TokenFromCredentials.authorize() expects, *not* a service ie
+    # subclass of GDataService.
+    blogger = client.BloggerClient()
+    auth_token = gauth.OAuth2TokenFromCredentials(oauth.credentials)
+    auth_token.authorize(blogger)
 
     # get the current user
-    try:
-      blogs = gdata_service.GetBlogFeed()
-    except HttpError:
-      logging.exception('Error getting /feeds/default/blogs')
-      self.redirect('/?msg=%s' % urllib.quote('Error accessing Blogger for this account.'))
-      return
-
-    logging.debug('Got blogs: %r' % blogs)
-    owner_name = blogs.entry[0].author.name if blogs else None
+    blogs = blogger.get_blogs()
+    logging.debug('Got blogs: %r' % str(blogs))
+    owner_name = blogs.entry[0].author[0].name.text if blogs.entry else None
     hostnames = []
     for entry in blogs.entry:
       for link in entry.link:
@@ -205,9 +209,8 @@ class ConnectBlogger(webapp2.RequestHandler):
     # redirect so that refreshing the page doesn't try to regenerate the oauth
     # token, which won't work.
     self.redirect('/?' + urllib.urlencode({
-          'blogger_owner_name': user['name'],
+          'blogger_owner_name': owner_name,
           'blogger_hostnames': hostnames,
-          'oauth_token': auth_token['oauth_token'],
           }, True))
 
 

@@ -72,7 +72,6 @@
 {% if blogger_owner_name %}
 <form method="post" action="/blogger/dest/add">
   <input type="hidden" name="blogger_owner_name" value="{{ blogger_owner_name }}" />
-  <input type="hidden" name="oauth_token" value="{{ oauth_token }}" />
   {% for host in blogger_hostnames %}
     <input type="radio" name="host" id="{{ host }}" value="{{ host }}" />
     <label for="{{ host }}">{{ host }}</label><br />
