@@ -64,6 +64,12 @@ skip_files:
 - ^(.*/)?.*\.bak$
 # don't need anything in the submodule subdirs, especially since
 # webapp-improved/lib has over 1k files!
+- ^gdata-python-client/(pydocs|samples|tests)/.*
 - ^google-api-python-client/(docs|samples|tests)/.*
 - ^httplib2_module/(doc|python3|ref|test).*
 - ^webutil/webapp-improved/.*/.*
+- ^oauthlib_module/(docs|tests)/.*
+- ^python-gflags/(debian|tests)/.*
+- ^requests_module/docs/.*
+- ^requests_oauthlib_module/tests/.*
+

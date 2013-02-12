@@ -22,3 +22,6 @@
 [submodule "oauthlib_module"]
 	path = oauthlib_module
 	url = git@github.com:idan/oauthlib.git
+[submodule "gdata-python-client"]
+	path = gdata-python-client
+	url = git@github.com:snarfed/gdata-python-client.git

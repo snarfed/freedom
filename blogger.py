@@ -1,4 +1,13 @@
 """Blogger destination.
+
+Uses the v2 GData API, *not* the v3 REST API, which can't create comments. More:
+https://groups.google.com/d/topic/bloggerdev/jRJKC7jjs6M/discussion
+https://developers.google.com/blogger/docs/3.0/reference/comments
+https://developers.google.com/blogger/docs/2.0/developers_guide
+
+Uses google-api-python-client to auth via OAuth 2. The integration between
+gdata-python-client and google-api-python-client was added here:
+https://code.google.com/p/gdata-python-client/source/detail?r=ecb1d49b5fbe05c9bc6c8525e18812ccc02badc0
 """
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
@@ -54,8 +63,6 @@ class Blogger(models.Destination):
       handler: the current webapp.RequestHandler
 
     Returns: Blogger
-
-    Raises: BadValueError if url or xmlrpc_url are bad
     """
     properties = dict(handler.request.params)
 
