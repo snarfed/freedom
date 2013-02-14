@@ -80,11 +80,6 @@ class GooglePlus(models.Source):
     """
     # TODO: expose as options
     # https://dev.googleplus.com/docs/api/1.1/get/statuses/user_timeline
-    INCLUDE_REPOSTS = False    # ?exclude_replies=false
-    INCLUDE_AT_REPLIES = False  # ?include_rts=true
-
-    # Don't publish posts from these applications
-    APPLICATION_BLACKLIST = ('Likes', 'Links', 'googleplusfeed')
 
     # get this user's OAuth credentials
     credentials = StorageByKeyName(CredentialsModel, self.gae_user_id,
@@ -122,7 +117,7 @@ class GooglePlus(models.Source):
     # if posts:
     #   scan_url + '&max_id=%s' % posts[-1].id()
     # # XXX remove
-    # if posts and posts[-1].data()['created_time'] < '2013--01-01':
+    # if posts and posts[-1].data()['created_time'] < '2013-01-01':
     #   next_scan_url = None
     # # XXX
     return posts, next_scan_url

@@ -13,9 +13,12 @@ import models
 from webutil import handlers
 from webutil import webapp2
 
+import blogger
 import facebook
 import googleplus
+import tumblr
 import twitter
+import wordpress_xmlrpc
 
 from google.appengine.api import taskqueue
 from google.appengine.ext import db

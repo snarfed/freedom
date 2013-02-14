@@ -1,9 +1,11 @@
 """Blogger destination.
 
-Uses the v2 GData API, *not* the v3 REST API, which can't create comments. More:
+Uses the v2 GData API:
+https://developers.google.com/blogger/docs/2.0/developers_guider
+
+Does *not* use the v3 REST API because it can't create comments. More:
 https://groups.google.com/d/topic/bloggerdev/jRJKC7jjs6M/discussion
 https://developers.google.com/blogger/docs/3.0/reference/comments
-https://developers.google.com/blogger/docs/2.0/developers_guide
 
 Uses google-api-python-client to auth via OAuth 2. This describes how to get
 gdata-python-client to use an OAuth 2 token from google-api-python-client:
@@ -51,8 +53,11 @@ class Blogger(models.Destination):
   # the App Engine user id, ie users.get_current_user().user_id()
   gae_user_id = db.StringProperty(required=True)
 
-  def display_name(self):
+  def hostname(self):
     return self.key().name()
+
+  def display_name(self):
+    return self.hostname()
 
   @classmethod
   def new(cls, handler, **kwargs):

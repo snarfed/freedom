@@ -1,4 +1,6 @@
 """Tumblr destination.
+
+http://www.tumblr.com/docs/en/api/v2
 """
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
@@ -50,8 +52,11 @@ class Tumblr(models.Destination):
   token_key = db.StringProperty(required=True)
   token_secret = db.StringProperty(required=True)
 
-  def display_name(self):
+  def hostname(self):
     return self.key().name()
+
+  def display_name(self):
+    return self.hostname()
 
   @classmethod
   def new(cls, handler, **kwargs):
@@ -77,14 +82,12 @@ class Tumblr(models.Destination):
     """
     # TODO: expose as option
     # Attach these tags to the Tumblr posts.
-    POST_TAGS = ['freedom.io']
+    POST_TAGS = 'freedom.io'
 
     activity = post.to_activity()
     obj = activity['object']
     date = util.parse_iso8601(activity['published'])
     location = obj.get('location')
-    xmlrpc = XmlRpc(self.xmlrpc_url(), self.blog_id, self.username, self.password,
-                    verbose=True, transport=GAEXMLRPCTransport())
     logging.info('Publishing post %s', obj['id'])
 
     # extract title
@@ -98,79 +101,57 @@ class Tumblr(models.Destination):
       else:
         title = date.date().isoformat()
 
-    # photo
-    image = obj.get('image', {})
-    image_url = image.get('url')
-    if obj.get('objectType') == 'photo' and image_url:
-      logging.info('Downloading %s', image_url)
-      resp = urllib2.urlopen(image_url)
-      data = resp.read()
-      logging.debug('downloaded %d bytes', len(data))
-      filename = os.path.basename(urlparse.urlparse(image_url).path)
-      mime_type = resp.info().gettype()
-      logging.info('Sending uploadFile: %s %s', mime_type, filename)
-      upload = xmlrpc.upload_file(filename, mime_type, data)
-      image['url'] = upload['url']
+    # date is UTC (ie GMT), formatted e.g. '2012-01-14 12:00:15 GMT'
+    if date.utcoffset():
+      date = date - date.utcoffset()
+    datestr_utc = date.strftime('%Y-%m-%d %H:%M:%S GMT')
 
-    content = activitystreams.render_html(obj)
+    # post params: http://www.tumblr.com/docs/en/api/v2#posting
+    body = activitystreams.render_html(obj)
+    params = {
+      'type': 'text',
+      # 'tags': POST_TAGS,
+      # TODO: ugh, tumblr doesn't let you create a post with a date more than an
+      # hour off of the current time. bleh.
+      # https://groups.google.com/d/msg/tumblr-api/CYLno2Q60sU/6tR1Xe56TiIJ
+      # 'date': datestr_utc,
+      'format': 'html',
+      # 'title': title,
+      'body': body,
+      }
+
+    # photo
+    image_url = obj.get('image', {}).get('url')
+    if obj.get('objectType') == 'photo' and image_url:
+      params.update({'type': 'photo',
+                     'source': image_url,
+                     'caption': body,
+                     })
+      del params['body']
+      # del params['title']
 
     # post!
-    # http://codex.tumblr.org/XML-RPC_Tumblr_API/Posts#wp.newPost
-    new_post_params = {
-      'post_type': 'post',
-      'post_status': 'publish',
-      'post_title': title,
-      # leave this unset to default to the authenticated user
-      # 'post_author': 0,
-      'post_content': content,
-      'post_date': date,
-      'comment_status': 'open',
-      # WP post tags are now implemented as taxonomies:
-      # http://codex.tumblr.org/XML-RPC_Tumblr_API/Categories_%26_Tags
-      'terms_names': {'post_tag': POST_TAGS},
-      }
-    logging.info('Sending newPost: %r', new_post_params)
-    post_id = xmlrpc.new_post(new_post_params)
-    return str(post_id)
+    tp = tumblpy.Tumblpy(app_key=TUMBLR_APP_KEY,
+                         app_secret=TUMBLR_APP_SECRET,
+                         oauth_token=self.token_key,
+                         oauth_token_secret=self.token_secret)
+
+    logging.info('Creating post with params: %r', params)
+    resp = tp.post('post', blog_url=self.hostname(), params=params)
+    return str(resp['id'])
 
   def publish_comment(self, comment):
-    """Publishes a comment.
+    """Tumblr doesn't support comments, so this is a noop.
+
+    I could maybe put comments in submitted posts:
+    http://www.tumblr.com/docs/en/using_messages#submit
+
+    ...but it doesn't look like they're exposed in the API.
 
     Args:
       comment: comment entity
-
-    Returns: string, the Tumblr comment id
     """
-    obj = comment.to_activity()['object']
-    author = obj.get('author', {})
-    content = obj.get('content')
-    if not content:
-      logging.warning('Skipping empty comment %s', obj['id'])
-      return
-
-    logging.info('Publishing comment %s', obj['id'])
-    xmlrpc = XmlRpc(self.xmlrpc_url(), self.blog_id, self.username, self.password,
-                    verbose=True, transport=GAEXMLRPCTransport())
-
-    try:
-      comment_id = xmlrpc.new_comment(comment.dest_post_id, {
-          'author': author.get('displayName', 'Anonymous'),
-          'author_url': author.get('url'),
-          'content': activitystreams.render_html(obj),
-          })
-    except xmlrpclib.Fault, e:
-      # if it's a dupe, we're done!
-      if not (e.faultCode == 500 and
-              e.faultString.startswith('Duplicate comment detected')):
-        raise
-
-    published = obj.get('published')
-    if published:
-      date = util.parse_iso8601(published)
-      logging.info("Updating comment's time to %s", date)
-      xmlrpc.edit_comment(comment_id, {'date_created_gmt': date})
-
-    return str(comment_id)
+    logging.info("Tumblr doesn't support comments; skipping: %r", comment.data())
 
 
 # TODO: unify with other dests, sources?
@@ -224,7 +205,7 @@ class OAuthCallback(webapp2.RequestHandler):
     self.redirect('/?' + urllib.urlencode({
           'tumblr_username': user['name'],
           'tumblr_hostnames': hostnames,
-          # 'tumblr_titles': titles,
+           # 'tumblr_titles': titles,
           'oauth_token': auth_token['oauth_token'],
           }, True))
 
@@ -237,10 +218,7 @@ class AddTumblr(webapp2.RequestHandler):
     if token is None:
       raise exc.HTTPBadRequest('Invalid oauth_token: %s' % oauth_token)
 
-    tumblr = Tumblr.new(self,
-                        # title=self.request.get('title'),
-                        token_key=token.token_key(),
-                        token_secret=token.secret)
+    tumblr = Tumblr.new(self, token_key=token_key, token_secret=token.secret)
 
     # redirect so that refreshing the page doesn't try to regenerate the oauth
     # token, which won't work.
