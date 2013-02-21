@@ -32,14 +32,20 @@ API_ME_URL = 'https://public-api.wordpress.com/rest/v1/me/'
 API_SITE_URL = 'https://public-api.wordpress.com/rest/v1/sites/%d'
 
 
-# https://developer.wordpress.com/apps/2043/
+CALLBACK_PATH = '/wordpress_rest/oauth_callback'
 if appengine_config.DEBUG:
+  # https://developer.wordpress.com/apps/2090/
   CLIENT_ID = appengine_config.read('wordpress.com_client_id_local')
   CLIENT_SECRET = appengine_config.read('wordpress.com_client_secret_local')
+  CALLBACK_URL = 'http://my.dev.com:8080' + CALLBACK_PATH
 else:
+  # https://developer.wordpress.com/apps/2043/
   CLIENT_ID = appengine_config.read('wordpress.com_client_id')
   CLIENT_SECRET = appengine_config.read('wordpress.com_client_secret')
+  CALLBACK_URL = CALLBACK_PATH
 
+
+TOKEN_RESPONSE_PARAM = 'token_response'
 oauth = OAuth2Decorator(
   client_id=CLIENT_ID,
   client_secret=CLIENT_SECRET,
@@ -50,39 +56,42 @@ oauth = OAuth2Decorator(
   # wordpress.com doesn't let you use an oauth redirect URL with "local" or
   # "localhost" anywhere in it. :/ had to use my.dev.com and put this in
   # /etc/hosts:   127.0.0.1 my.dev.com
-  callback_path='/wordpress_rest/oauth_callback')
+  callback_path=CALLBACK_URL,
+  # the HTTP request that gets an access token also gets the blog id and
+  # url selected by the user, so grab it from the token response.
+  token_response_param=TOKEN_RESPONSE_PARAM)
 
 
 class WordPressRest(models.Destination):
-  """A WordPress blog accessed via REST API. Currently only wordpress.com."""
+  """A WordPress blog accessed via REST API. The key name is the blog hostname.
 
-  oauth_token = db.StringProperty(required=True)
-  oauth_token_secret = db.StringProperty(required=True)
+  Currently only supports wordpress.com.
+  """
+
+  blog_id = db.StringProperty(required=True)
+  oauth_token = db.StringProperty()#required=True)
+  oauth_token_secret = db.StringProperty()#required=True)
+
+  def hostname(self):
+    return self.key().name()
 
   def display_name(self):
-    return util.domain_from_link(self.xmlrpc_url())
+    return self.hostname()
 
   @classmethod
-  def new(cls, handler):
-    """Creates and saves a WordPressRest entity based on query parameters.
+  def new(cls, handler, blog_id, blog_url):
+    """Creates and saves a WordPressRest entity.
 
     Args:
       handler: the current webapp.RequestHandler
+      blog_id: string
+      blog_url: string
 
     Returns: WordPressRest
     """
     properties = dict(handler.request.params)
-
-    xmlrpc_url = properties['xmlrpc_url']
-    db.LinkProperty().validate(xmlrpc_url)
-
-    if 'blog_id' not in properties:
-      properties['blog_id'] = 0
-
-    assert 'username' in properties
-    assert 'password' in properties
-
-    return WordPressRest.get_or_insert(xmlrpc_url, **properties)
+    key_name = util.domain_from_link(blog_url)
+    return WordPressRest.get_or_insert(key_name, blog_id=blog_id, **properties)
 
   def publish_post(self, post):
     """Publishes a post.
@@ -198,25 +207,13 @@ class AddWordPressRest(webapp2.RequestHandler):
 
   @oauth.oauth_required
   def post(self):
-    # TODO: the HTTP request that gets an access token also gets the blog id and
-    # url selected by the user:
+
+    # the HTTP request that gets an access token also gets the blog id and
+    # url selected by the user, so grab it from the token response.
     # https://developer.wordpress.com/docs/oauth2/#exchange-code-for-access-token
-    # ideally i'd use that instead of requesting it manually, but it's not
-    # exposed. :/
-    # STATE: actually i do really need this, since it's the only way to see
-    # which blog the user selected. sigh. asked joe gregorio here:
-    # https://plus.google.com/106134299616714031548/posts/XtuGWPzG3Rc
-    http = oauth.http()
-    resp, content = http.request(API_ME_URL)
-    assert resp.status == 200
-    me = json.loads(content)
-    logging.debug('WPCOM me: %s' % me)
+    resp = json.loads(self.request.get(TOKEN_RESPONSE_PARAM))
+    wpr = WordPressRest.new(self, resp['blog_id'], resp['blog_url'])
 
-    resp, content = http.request(API_SITE_URL % me['primary_blog'])
-    assert resp.status == 200
-    logging.debug('WPCOM site: %s' % content)
-
-    wpr = WordPressRest.new(self)
     # redirect so that refreshing the page doesn't try to rewrite the Blogger
     # entity.
     self.redirect('/?dest=%s' % str(wpr.key()))
@@ -232,7 +229,7 @@ class DeleteWordPressRest(webapp2.RequestHandler):
 
 
 application = webapp2.WSGIApplication([
-    (oauth.callback_path, oauth.callback_handler()),
+    (CALLBACK_PATH, oauth.callback_handler()),
     ('/wordpress_rest/dest/add', AddWordPressRest),
     ('/wordpress_rest/dest/delete', DeleteWordPressRest),
     ], debug=appengine_config.DEBUG)
