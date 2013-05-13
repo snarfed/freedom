@@ -14,13 +14,13 @@ Development
 Requirements:
 
 - Python 2.7
-- Google App Engine (either dev_appserver or prod)
-<<<<<<< HEAD
+- Google App Engine (either dev_appserver or prod), which includes:
+  - django
+  - mox (for tests)
+  - webob
+  - yaml
 - Libraries in git submodules (be sure to run git submodule init and git
   submodule update!):
-=======
-- libraries in git submodules:
->>>>>>> public domain
   - http://github.com/snarfed/activitystreams-unofficial
   - http://github.com/musicmetric/google-api-python-client
   - http://github.com/adamjmcgrath/httplib2
