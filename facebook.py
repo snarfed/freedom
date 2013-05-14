@@ -21,12 +21,15 @@ from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
 
+API_BASE = ('http://localhost:8000'
+            if appengine_config.MOCKFACEBOOK else
+            'https://www.facebook.com')
 
 # facebook api url templates. can't (easily) use urllib.urlencode() because i
 # want to keep the %(...)s placeholders as is and fill them in later in code.
 # TODO: use appengine_config.py for local mockfacebook vs prod facebook
 GET_AUTH_CODE_URL = str('&'.join((
-    'https://www.facebook.com/dialog/oauth/?'
+    API_BASE + '/dialog/oauth?',
     'scope=read_stream,offline_access',
     'client_id=%(client_id)s',
     # redirect_uri here must be the same in the access token request!
@@ -36,7 +39,7 @@ GET_AUTH_CODE_URL = str('&'.join((
     )))
 
 GET_ACCESS_TOKEN_URL = str('&'.join((
-    'https://graph.facebook.com/oauth/access_token?'
+    API_BASE + '/oauth/access_token?'
     'client_id=%(client_id)s',
     # redirect_uri here must be the same in the oauth request!
     # (the value here doesn't actually matter since it's requested server side.)
@@ -45,8 +48,8 @@ GET_ACCESS_TOKEN_URL = str('&'.join((
     'code=%(auth_code)s',
     )))
 
-API_USER_URL = 'https://graph.facebook.com/%(id)s?access_token=%(access_token)s'
-API_POSTS_URL = 'https://graph.facebook.com/%(id)s/posts?access_token=%(access_token)s'
+API_USER_URL = API_BASE + '/%(id)s?access_token=%(access_token)s'
+API_POSTS_URL = API_BASE + '/%(id)s/posts?access_token=%(access_token)s'
 
 
 class Facebook(models.Source):
