@@ -10,6 +10,8 @@
 
 <body>
 
+{{ message }}
+
 <div id="header">
   <!-- <a href="/"><img id="logo" src="/static/facebook_rss_small.jpg"></img></a> -->
   <p id="title"><span>
@@ -19,6 +21,19 @@
     ({{ migration.dest.type_display_name }})
     </span></p>
 </div>
+
+<p>
+{% if migration.stopped %}
+PAUSED.
+<form method="post" action="/migration/{{ migration.id }}/resume">
+  <input type="submit" value="Resume">
+</form>
+{% else %}
+<form method="post" action="/migration/{{ migration.id }}/stop">
+  <input type="submit" value="Stop">
+</form>
+{% endif %}
+</p>
 
 {% for status, entities in migratables.items %}
 <ul>

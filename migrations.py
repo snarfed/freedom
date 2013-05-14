@@ -40,6 +40,46 @@ class MigrateHandler(webapp2.RequestHandler):
     self.redirect('/migration/%d' % migration.id)
 
 
+class StopHandler(webapp2.RequestHandler):
+  """Stops a migration if it's currently running."""
+
+  message = 'Stopped migration.'
+
+  def post(self, id):
+    @db.transactional
+    def stop(key):
+      migration = models.Migration.get(key)
+      if not migration.stopped:
+        migration.stopped = True
+        migration.save()
+      else:
+        self.message = 'Migration is already stopped.'
+
+    id = int(id)
+    stop(models.Migration.all().filter('id =', id).get().key())
+    self.redirect('/migration/%d' % id)
+
+
+class ResumeHandler(webapp2.RequestHandler):
+  """Resumes a migration if it's currently stopped."""
+
+  message = 'Resumed migration.'
+
+  def post(self, id):
+    @db.transactional
+    def resume(key):
+      migration = models.Migration.get(key)
+      if migration.stopped:
+        migration.stopped = False
+        migration.save()
+      else:
+        self.message = 'Migration is already running.'
+
+    id = int(id)
+    resume(models.Migration.all().filter('id =', id).get().key())
+    self.redirect('/migration/%d' % id)
+
+
 class MigrationHandler(handlers.TemplateHandler):
   """Shows the status page for a migration."""
 
@@ -82,11 +122,15 @@ class MigrationHandler(handlers.TemplateHandler):
         for cls in self.MIGRATABLES[source_kind]))
       for status in models.Migratable.STATUSES}
 
-    return {'migration': migration, 'migratables': migratables}
+    return {'migration': migration,
+            'migratables': migratables,
+            'message': self.request.get('message')}
 
 
 application = webapp2.WSGIApplication(
   [('/migrate', MigrateHandler),
-   ('/migration/(.+)', MigrationHandler),
+   ('/migration/([^/]+)', MigrationHandler),
+   ('/migration/([^/]+)/stop', StopHandler),
+   ('/migration/([^/]+)/resume', ResumeHandler),
    ],
   debug=appengine_config.DEBUG)

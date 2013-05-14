@@ -138,6 +138,7 @@ class Migration(Base):
   STATUSES = ('new', 'processing', 'complete')
   status = db.StringProperty(choices=STATUSES, default='new')
   id = db.IntegerProperty(required=True)
+  stopped = db.BooleanProperty(required=True, default=False)
 
   # lazily cached entities
   cached_source = None
