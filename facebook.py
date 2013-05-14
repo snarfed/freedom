@@ -21,7 +21,7 @@ from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
 
-API_BASE = ('http://localhost:8000'
+API_BASE = ('http://localhost:8001'
             if appengine_config.MOCKFACEBOOK else
             'https://www.facebook.com')
 
