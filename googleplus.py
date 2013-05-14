@@ -29,7 +29,7 @@ from google.appengine.ext.webapp import template
 
 # service names and versions:
 # https://developers.google.com/api-client-library/python/reference/supported_apis
-json_service = discovery.build('plus', 'v1')
+# json_service = discovery.build('plus', 'v1')
 oauth = OAuth2Decorator(
   client_id=appengine_config.GOOGLE_CLIENT_ID,
   client_secret=appengine_config.GOOGLE_CLIENT_SECRET,
