@@ -30,3 +30,16 @@ Requirements:
   - http://github.com/requests/requests-oauthlib
   - http://github.com/idan/oauthlib
   - http://github.com/snarfed/gdata-python-client
+
+
+TODO
+====
+- migration page
+- pause/resume/cancel migration
+- posthaven
+- finish post/comment processing for:
+  - facebook
+  - twitter
+  - g+
+- make tasks transactional where necessary
+- port to ndb?
