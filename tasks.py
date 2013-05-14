@@ -82,7 +82,7 @@ class Scan(webapp2.RequestHandler):
     for i, post in enumerate(posts):
       # this will add a propagate task if the post is new (to us)
       post.get_or_save(task_countdown=i)
-      # XXX REMOVE, FOR DEBUGGING ONLY
+      # XXX REMOVE, FOR TESTING ONLY
       if post.to_activity()['published'] < '2013-02':
         next_scan_url = None
         break

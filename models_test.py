@@ -7,7 +7,7 @@ import json
 import mox
 
 import appengine_config
-from post import Post
+from models import Migratable
 from webutil import testutil
 
 
@@ -48,15 +48,15 @@ class SourceTest(testutil.HandlerTest):
     self._test_create_new()
 
 
-class PostTest(testutil.HandlerTest):
+class MigratableTest(testutil.HandlerTest):
 
   def setUp(self):
-    super(PostTest, self).setUp()
-    self.post = Post(key_name='tag:xyz', vars=json.dumps(POST_VARS))
+    super(MigratableTest, self).setUp()
+    self.post = Migratable(key_name='tag:xyz', vars=json.dumps(POST_VARS))
     appengine_config.USER_KEY_HANDLER_SECRET = 'my_secret'
 
   def test_get_or_save(self):
-    self.assertEqual(0, Post.all().count())
+    self.assertEqual(0, Migratable.all().count())
     self.assertEqual(0, len(self.taskqueue_stub.GetTasks('propagate')))
 
     # new. should add a propagate task.

@@ -74,7 +74,7 @@ class GooglePlus(models.Source):
         starts at the beginning.
 
     Returns:
-      (posts, next_scan_url). posts is a sequence of Posts.
+      (posts, next_scan_url). posts is a sequence of Migratables.
       next_scan_url is a string, the API URL to use for the next scan, or None
       if there is nothing more to scan.
     """
