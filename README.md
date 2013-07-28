@@ -34,7 +34,13 @@ Requirements:
 
 TODO
 ====
+- test: use mockfb to run a migration to local snarfed
 - migration page
+  advice from @colbyh: use Bootstrap or Yui or maybe Zurb for UI, d3 for charts
+  and visualizations, JQuery and maybe Underscore for JS. simple XHR polling is
+  fine. set cookie to remember users with existing migration(s), on front page
+  show summary and link for each migration in place of splash image, leave rest
+  of new migration form intact.
 - pause/resume/cancel migration
 - posthaven
 - finish post/comment processing for:
