@@ -158,9 +158,8 @@ class Tumblr(models.Destination):
 class ConnectTumblr(webapp2.RequestHandler):
   def post(self):
     tp = tumblpy.Tumblpy(app_key=TUMBLR_APP_KEY,
-                         app_secret=TUMBLR_APP_SECRET,
-                         callback_url=OAUTH_CALLBACK_URL)
-    auth_props = tp.get_authentication_tokens()
+                         app_secret=TUMBLR_APP_SECRET)
+    auth_props = tp.get_authentication_tokens(callback_url=OAUTH_CALLBACK_URL)
 
     # store the request token for later use in the callback handler
     TumblrOAuthRequestToken.new(auth_props['oauth_token'],
