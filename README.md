@@ -48,3 +48,5 @@ TODO
   - g+
 - make tasks transactional where necessary
 - port to ndb?
+- migration options
+  - twitter: exclude @ replies
