@@ -19,8 +19,7 @@ Requirements:
   - mox (for tests)
   - webob
   - yaml
-- Libraries in git submodules (be sure to run git submodule init and git
-  submodule update!):
+- Libraries in git submodules (be sure to run git submodule init!):
   - http://github.com/snarfed/activitystreams-unofficial
   - http://github.com/musicmetric/google-api-python-client
   - http://github.com/adamjmcgrath/httplib2
@@ -41,7 +40,7 @@ TODO
   fine. set cookie to remember users with existing migration(s), on front page
   show summary and link for each migration in place of splash image, leave rest
   of new migration form intact.
-- pause/resume/cancel migration
+- cancel migration
 - posthaven
 - finish post/comment processing for:
   - facebook
