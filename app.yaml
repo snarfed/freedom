@@ -23,37 +23,37 @@ handlers:
 # dynamic
 - url: /blogger/.*
   script: blogger.application
-  secure: always
+  secure: optional
   login: required
 
 - url: /facebook/.*
   script: facebook.application
-  secure: always
+  secure: optional
 
 - url: /googleplus/.*
   script: googleplus.application
-  secure: always
+  secure: optional
   login: required
 
 - url: /tumblr/.*
   script: tumblr.application
-  secure: always
+  secure: optional
 
 - url: /twitter/.*
   script: twitter.application
-  secure: always
+  secure: optional
 
 - url: /wordpress_rest/.*
   script: wordpress_rest.application
-  secure: always
+  secure: optional
 
 - url: /wordpress_xmlrpc/.*
   script: wordpress_xmlrpc.application
-  secure: always
+  secure: optional
 
 - url: /(migrate|migration/.*)
   script: migrations.application
-  secure: always
+  secure: optional
 
 - url: /_ah/queue/.*
   script: tasks.application
@@ -61,7 +61,7 @@ handlers:
 
 - url: /
   script: main.application
-  secure: always
+  secure: optional
 
 skip_files:
 - ^(.*/)?.*\.py[co]
