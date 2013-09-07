@@ -4,48 +4,24 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-  <title>Freedom</title>
+  <title>Asheville / Freedom</title>
   <link href="/static/style.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
 
 <div id="header">
-  <span style="font-size: 3em">&nbsp; freedom.io</span>
+  <span style="font-size: 3em">&nbsp; asheville.io / freedom.io</span>
   <p id="title"><span><br/><br/><br/></span></p>
   <p>Social networks keep your memories locked up. Take them back and set them free! Copy your posts, pictures, and other content to a blog of your choice.</p>
-  <!-- <a href="/"><img id="logo" src="/static/facebook_rss_small.jpg"></img></a> -->
 </div>
 
 <!-- <p>Freedom lets you copy your Facebook, Twitter or Google+ posts to a blog of -->
 <!-- your choice. Seize your freedom!</p> -->
 
-<!-- <hr /> -->
-
 <div {% if dest %} style="background-color: gray" {% endif %}>
-<form method="post" action="/wordpress_xmlrpc/dest/add" id="dest">
-  <table><tr><td>
-    <!--     <label for="url">Base URL</label> -->
-    <!--   </td><td> -->
-    <!--     <input id="url" name="url" type="text" /> -->
-    <!-- </td></tr><tr><td> -->
-        <label for="xmlrpc_url">XML-RPC URL</label>
-      </td><td>
-        <input id="xmlrpc_url" name="xmlrpc_url" type="text" />
-    </td></tr><tr><td>
-        <label for="username">Username</label>
-      </td><td>
-        <input id="username" name="username" type="text" />
-    </td></tr><tr><td>
-        <label for="password">Password</label>
-      </td><td>
-        <input id="password" name="password" type="password" />
-    </td></tr><tr><td>
-  </td></tr></table>
-  <input type="image" alt="Sign into self-hosted WordPress blog" src="/static/wordpress_button.png" />
-</form>
+<p>First, select a destination:</p>
 
-<br />
 <form method="post" action="/wordpress_rest/dest/add">
   <input type="image" alt="Sign in with WordPress.com" src="/static/wordpress_com_button.png" />
 </form>
@@ -81,12 +57,37 @@
 </form>
 {% endif %}
 
+<br />
+<form method="post" action="/wordpress_xmlrpc/dest/add" id="dest">
+  <input type="image" alt="Sign into self-hosted WordPress blog"
+         src="/static/wordpress_button.png" /> Self hosted:
+  <table><tr><td>
+    <!--     <label for="url">Base URL</label> -->
+    <!--   </td><td> -->
+    <!--     <input id="url" name="url" type="text" /> -->
+    <!-- </td></tr><tr><td> -->
+        <label for="xmlrpc_url">XML-RPC URL</label>
+      </td><td>
+        <input id="xmlrpc_url" name="xmlrpc_url" type="text" />
+    </td></tr><tr><td>
+        <label for="username">Username</label>
+      </td><td>
+        <input id="username" name="username" type="text" />
+    </td></tr><tr><td>
+        <label for="password">Password</label>
+      </td><td>
+        <input id="password" name="password" type="password" />
+    </td></tr><tr><td>
+  </td></tr></table>
+</form>
+
 </div>
 
 <hr />
 
 <div id="sources"
      {% if source or not dest %} style="background-color: gray" {% endif %}>
+<p>Now, select a source:</p>
 <form method="post" action="/facebook/source/add">
   <input type="hidden" name="dest" value="{{ dest }}" />
   <input type="image" alt="Sign in with Facebook" src="/static/facebook_button.png" />
