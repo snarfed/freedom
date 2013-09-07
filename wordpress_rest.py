@@ -138,8 +138,6 @@ class WordPressRest(models.Destination):
       upload = xmlrpc.upload_file(filename, mime_type, data)
       image['url'] = upload['url']
 
-    content = activitystreams.render_html(obj)
-
     # post!
     # http://codex.wordpress.org/XML-RPC_WordPress_API/Posts#wp.newPost
     new_post_params = {
@@ -148,7 +146,7 @@ class WordPressRest(models.Destination):
       'post_title': title,
       # leave this unset to default to the authenticated user
       # 'post_author': 0,
-      'post_content': content,
+      'post_content': post.render_html(),
       'post_date': date,
       'comment_status': 'open',
       # WP post tags are now implemented as taxonomies:
@@ -182,7 +180,7 @@ class WordPressRest(models.Destination):
       comment_id = xmlrpc.new_comment(comment.dest_post_id, {
           'author': author.get('displayName', 'Anonymous'),
           'author_url': author.get('url'),
-          'content': activitystreams.render_html(obj),
+          'content': comment.render_html(),
           })
     except xmlrpclib.Fault, e:
       # if it's a dupe, we're done!
@@ -211,8 +209,13 @@ class AddWordPressRest(webapp2.RequestHandler):
     # the HTTP request that gets an access token also gets the blog id and
     # url selected by the user, so grab it from the token response.
     # https://developer.wordpress.com/docs/oauth2/#exchange-code-for-access-token
-    resp = json.loads(self.request.get(TOKEN_RESPONSE_PARAM))
-    wpr = WordPressRest.new(self, resp['blog_id'], resp['blog_url'])
+    token_resp = self.request.get(TOKEN_RESPONSE_PARAM)
+    try:
+      resp = json.loads(token_resp)
+      wpr = WordPressRest.new(self, resp['blog_id'], resp['blog_url'])
+    except:
+      logging.error('Bad JSON response: %r', self.request.body)
+      raise
 
     # redirect so that refreshing the page doesn't try to rewrite the Blogger
     # entity.

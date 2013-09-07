@@ -108,7 +108,7 @@ class Tumblr(models.Destination):
     datestr_utc = date.strftime('%Y-%m-%d %H:%M:%S GMT')
 
     # post params: http://www.tumblr.com/docs/en/api/v2#posting
-    body = activitystreams.render_html(obj)
+    body = post.render_html()
     params = {
       'type': 'text',
       # 'tags': POST_TAGS,

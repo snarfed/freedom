@@ -70,6 +70,8 @@ class Dropbox(models.Destination):
     path = self.make_path(post, activity)
 
     # https://www.dropbox.com/developers/core/start/python#toc-uploading
+    # TODO: skip or overwrite if files already exist; don't let dropbox add
+    # (1), ... suffixes.
     client = DropboxClient(self.oauth_token)
     pretty_json = json.dumps(activity, indent=2)
     response = client.put_file(path + '.json', StringIO.StringIO(pretty_json))

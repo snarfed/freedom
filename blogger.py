@@ -120,8 +120,6 @@ class Blogger(models.Destination):
       upload = xmlrpc.upload_file(filename, mime_type, data)
       image['url'] = upload['url']
 
-    content = activitystreams.render_html(obj)
-
     # post!
     # http://codex.blogger.org/XML-RPC_Blogger_API/Posts#wp.newPost
     new_post_params = {
@@ -130,7 +128,7 @@ class Blogger(models.Destination):
       'post_title': title,
       # leave this unset to default to the authenticated user
       # 'post_author': 0,
-      'post_content': content,
+      'post_content': post.render_html(),
       'post_date': date,
       'comment_status': 'open',
       # WP post tags are now implemented as taxonomies:
@@ -164,7 +162,7 @@ class Blogger(models.Destination):
       comment_id = xmlrpc.new_comment(comment.dest_post_id, {
           'author': author.get('displayName', 'Anonymous'),
           'author_url': author.get('url'),
-          'content': activitystreams.render_html(obj),
+          'content': comment.render_html(),
           })
     except xmlrpclib.Fault, e:
       # if it's a dupe, we're done!
