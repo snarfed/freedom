@@ -17,6 +17,7 @@ from activitystreams import activitystreams
 import appengine_config
 import models
 import tumblpy
+from webob import exc
 from webutil import util
 from webutil import webapp2
 
