@@ -22,6 +22,11 @@
 <div {% if dest %} style="background-color: gray" {% endif %}>
 <p>First, select a destination:</p>
 
+<form method="post" action="/dropbox/dest/add">
+  <input type="image" alt="Sign in with Dropbox" src="/static/dropbox_button.png" />
+</form>
+
+<br />
 <form method="post" action="/wordpress_rest/dest/add">
   <input type="image" alt="Sign in with WordPress.com" src="/static/wordpress_com_button.png" />
 </form>
