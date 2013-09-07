@@ -50,3 +50,4 @@ TODO
 - port to ndb?
 - migration options
   - twitter: exclude @ replies
+- once it's done, maybe enter it in http://www.google.com/events/gcdc2013/ ?
