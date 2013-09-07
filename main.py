@@ -16,6 +16,9 @@ class FrontPage(handlers.TemplateHandler):
   def template_file(self):
     return 'templates/index.html'
 
+  def force_to_sequence(self):
+    return set(['tumblr_hostnames', 'blogger_hostnames'])
+
 
 application = webapp2.WSGIApplication(
   [('/', FrontPage),
