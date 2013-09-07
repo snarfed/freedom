@@ -2,6 +2,8 @@ datastore.dat
 oauth_client_secret
 plus-dogfood.json
 private_notes
+dropbox_app_key
+dropbox_app_secret
 facebook_app_id
 facebook_app_secret
 facebook_app_id_local
