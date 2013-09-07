@@ -25,3 +25,6 @@
 [submodule "gdata-python-client"]
 	path = gdata-python-client
 	url = git@github.com:snarfed/gdata-python-client.git
+[submodule "dropbox-client-python"]
+	path = dropbox-client-python
+	url = git@github.com:cklein/dropbox-client-python.git
