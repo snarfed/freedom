@@ -7,8 +7,11 @@ https://www.dropbox.com/developers/core/docs
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
 
+import json
 import logging
 import os
+import string
+import StringIO
 import urllib
 
 from activitystreams import activitystreams
@@ -22,6 +25,8 @@ from webutil import webapp2
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
 
+
+FILENAME_TITLE_MAX_LEN = 40
 
 DROPBOX_APP_KEY = appengine_config.read('dropbox_app_key')
 DROPBOX_APP_SECRET = appengine_config.read('dropbox_app_secret')
@@ -61,13 +66,33 @@ class Dropbox(models.Destination):
     return Dropbox.get_or_insert(user_id, **kwargs)
 
   def publish_post(self, post):
-    """TODO"""
-    raise NotImplementedError()
+    """Writes a post to a file in Dropbox"""
+    activity = post.to_activity()
+    path = self.make_path(post, activity)
 
+    # https://www.dropbox.com/developers/core/start/python#toc-uploading
+    response = client.put_file(path + '.json',
+                               StringIO.StringIO(json.dumps(activity))
 
   def publish_comment(self, comment):
     """TODO"""
     raise NotImplementedError()
+
+  def make_path(self, migratable, activity):
+    """Generates the file path for a post or comment, *without* extension."""
+    source = migratable.migration.source().type_display_name()
+
+    # Only date, not time or time zone
+    time = activity.get('published', '') or activity['obj'].get('published', '')
+    date =  date[:10]
+
+    source_id = activity.get('id', '').split(':')[-1]
+
+    truncated = activity.get('title', '').strip()[:TITLE_MAX_LEN]
+    title = ''.join(c for c in truncated.replace(' ', '_')
+                    if c.isalnum() or c == '_')
+
+    return os.path.join('/', source, '_'.join(date, source_id, title))
 
 
 # TODO: unify with other dests, sources?

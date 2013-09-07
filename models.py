@@ -105,24 +105,34 @@ class Destination(Base):
   """
 
   def publish_post(self, post):
-    """Publishes a post, idempotently, and returns its (destination) id.
+    """Publishes a post, idempotently.
 
     To be implemented by subclasses.
 
     In order to be idempotent, this should include the post id in the
     destination post so that it can be queried later to see if it's
     already been published or not.
+
+    Args:
+      post: Migratable
+
+    Returns: string, the destination id of the migrated post
     """
     raise NotImplementedError()
 
   def publish_comment(self, comment):
-    """Publishes a comment, idempotently, and returns its (destination) id.
+    """Publishes a comment, idempotently.
 
     To be implemented by subclasses.
 
     In order to be idempotent, this should include the comment id in the
     destination comment so that it can be queried later to see if it's
     already been published or not.
+
+    Args:
+      comment: Migratable
+
+    Returns: string, the destination id of the migrated comment
     """
     raise NotImplementedError()
 
@@ -191,14 +201,21 @@ class Migratable(Base):
   parsed_data = None
 
   def to_activity(self):
-    """Returns an ActivityStreams activity dict for this post or comment.
+    """Converts this to an ActivityStreams activity.
 
     To be implemented by subclasses.
+
+    Returns: ActivityStreams activity dict
     """
     raise NotImplementedError()
 
   def get_comments(self):
-    """Returns a list of entities for this post's comments."""
+    """Fetches this post's comments.
+
+    To be implemented by subclasses.
+
+    Returns: list of Migratable
+    """
     return []
 
   @db.transactional
