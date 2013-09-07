@@ -13,7 +13,10 @@ import models
 from webutil import handlers
 from webutil import webapp2
 
+# Import all sources and destinations because their Model classes are
+# instantiated here.
 import blogger
+import dropbox
 import facebook
 import googleplus
 import tumblr

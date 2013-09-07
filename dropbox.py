@@ -26,7 +26,7 @@ from google.appengine.ext import db
 from google.appengine.ext.webapp import template
 
 
-FILENAME_TITLE_MAX_LEN = 40
+TITLE_MAX_LEN = 40
 
 DROPBOX_APP_KEY = appengine_config.read('dropbox_app_key')
 DROPBOX_APP_SECRET = appengine_config.read('dropbox_app_secret')
@@ -71,8 +71,14 @@ class Dropbox(models.Destination):
     path = self.make_path(post, activity)
 
     # https://www.dropbox.com/developers/core/start/python#toc-uploading
-    response = client.put_file(path + '.json',
-                               StringIO.StringIO(json.dumps(activity))
+    client = DropboxClient(self.oauth_token)
+    pretty_json = json.dumps(activity, indent=2)
+    response = client.put_file(path + '.json', StringIO.StringIO(pretty_json))
+    logging.info('Wrote post as JSON: %s', response)
+
+    html = activitystreams.render_html(activity['object'])
+    response = client.put_file(path + '.html', StringIO.StringIO(html))
+    logging.info('Wrote post as HTML: %s', response)
 
   def publish_comment(self, comment):
     """TODO"""
@@ -82,9 +88,9 @@ class Dropbox(models.Destination):
     """Generates the file path for a post or comment, *without* extension."""
     source = migratable.migration.source().type_display_name()
 
-    # Only date, not time or time zone
-    time = activity.get('published', '') or activity['obj'].get('published', '')
-    date =  date[:10]
+    # Extract just the date, discard time and time zone
+    date = (activity.get('published', '')
+            or activity['obj'].get('published', ''))[:10]
 
     source_id = activity.get('id', '').split(':')[-1]
 
@@ -92,7 +98,7 @@ class Dropbox(models.Destination):
     title = ''.join(c for c in truncated.replace(' ', '_')
                     if c.isalnum() or c == '_')
 
-    return os.path.join('/', source, '_'.join(date, source_id, title))
+    return os.path.join('/', source, '_'.join((date, source_id, title)))
 
 
 # TODO: unify with other dests, sources?
