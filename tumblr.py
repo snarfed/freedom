@@ -189,6 +189,7 @@ class OAuthCallback(webapp2.RequestHandler):
     TumblrOAuthFinalToken.new(final_token, final_secret)
 
     # get the user's blogs
+    # http://www.tumblr.com/docs/en/api/v2#user-methods
     tp = tumblpy.Tumblpy(app_key=TUMBLR_APP_KEY,
                          app_secret=TUMBLR_APP_SECRET,
                          oauth_token=final_token,
