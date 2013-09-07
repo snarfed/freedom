@@ -9,6 +9,7 @@ import json
 import logging
 import urlparse
 
+from activitystreams import activitystreams
 import appengine_config
 from webutil import util
 from webutil import webapp2
@@ -208,6 +209,11 @@ class Migratable(Base):
     Returns: ActivityStreams activity dict
     """
     raise NotImplementedError()
+
+  def render_html(self):
+    """Returns an HTML string rendering of this object."""
+    return activitystreams.render_html(self.to_activity()['object'],
+                                       self.migration.source().type_display_name())
 
   def get_comments(self):
     """Fetches this post's comments.

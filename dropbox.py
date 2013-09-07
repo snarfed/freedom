@@ -14,7 +14,6 @@ import string
 import StringIO
 import urllib
 
-from activitystreams import activitystreams
 import appengine_config
 from python_dropbox.client import DropboxOAuth2Flow, DropboxClient
 import models
@@ -76,7 +75,7 @@ class Dropbox(models.Destination):
     response = client.put_file(path + '.json', StringIO.StringIO(pretty_json))
     logging.info('Wrote post as JSON: %s', response)
 
-    html = activitystreams.render_html(activity['object'])
+    html = post.render_html()
     response = client.put_file(path + '.html', StringIO.StringIO(html))
     logging.info('Wrote post as HTML: %s', response)
 
