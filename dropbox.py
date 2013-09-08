@@ -70,15 +70,15 @@ class Dropbox(models.Destination):
     path = self.make_path(post, activity)
 
     # https://www.dropbox.com/developers/core/start/python#toc-uploading
-    # TODO: skip or overwrite if files already exist; don't let dropbox add
-    # (1), ... suffixes.
     client = DropboxClient(self.oauth_token)
     pretty_json = json.dumps(activity, indent=2)
-    response = client.put_file(path + '.json', StringIO.StringIO(pretty_json))
+    response = client.put_file(path + '.json', StringIO.StringIO(pretty_json),
+                               overwrite=True)
     logging.info('Wrote post as JSON: %s', response)
 
     html = post.render_html()
-    response = client.put_file(path + '.html', StringIO.StringIO(html))
+    response = client.put_file(path + '.html', StringIO.StringIO(html),
+                               overwrite=True)
     logging.info('Wrote post as HTML: %s', response)
 
   def publish_comment(self, comment):
