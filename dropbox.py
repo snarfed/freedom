@@ -21,6 +21,7 @@ from webob import exc
 from webutil import util
 from webutil import webapp2
 
+from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
 
@@ -74,12 +75,20 @@ class Dropbox(models.Destination):
     pretty_json = json.dumps(activity, indent=2)
     response = client.put_file(path + '.json', StringIO.StringIO(pretty_json),
                                overwrite=True)
-    logging.info('Wrote post as JSON: %s', response)
+    logging.info('Wrote JSON post: %s', response)
 
     html = post.render_html()
     response = client.put_file(path + '.html', StringIO.StringIO(html),
                                overwrite=True)
-    logging.info('Wrote post as HTML: %s', response)
+    logging.info('Wrote HTML post: %s', response)
+
+    image = activity['object'].get('image', {}).get('url')
+    if image:
+      resp = urlfetch.fetch(image)
+      ext = os.path.splitext(image)[-1]
+      response = client.put_file(path + ext, StringIO.StringIO(resp.content),
+                                 overwrite=True)
+      logging.info('Wrote image: %s', response)
 
   def publish_comment(self, comment):
     """TODO"""
@@ -91,7 +100,7 @@ class Dropbox(models.Destination):
 
     # Extract just the date, discard time and time zone
     date = (activity.get('published', '')
-            or activity['obj'].get('published', ''))[:10]
+            or activity['object'].get('published', ''))[:10]
 
     source_id = activity.get('id', '').split(':')[-1]
 
