@@ -219,7 +219,7 @@ class AddBlogger(webapp2.RequestHandler):
     bl = Blogger.new(self)
     # redirect so that refreshing the page doesn't try to rewrite the Blogger
     # entity.
-    self.redirect('/?dest=%s' % str(bl.key()))
+    self.redirect('/?dest=%s#sources' % str(bl.key()))
 
 
 class DeleteBlogger(webapp2.RequestHandler):

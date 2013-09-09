@@ -219,7 +219,7 @@ class AddWordPressRest(webapp2.RequestHandler):
 
     # redirect so that refreshing the page doesn't try to rewrite the Blogger
     # entity.
-    self.redirect('/?dest=%s' % str(wpr.key()))
+    self.redirect('/?dest=%s#sources' % str(wpr.key()))
 
 
 class DeleteWordPressRest(webapp2.RequestHandler):

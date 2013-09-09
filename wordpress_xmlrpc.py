@@ -170,7 +170,7 @@ class AddWordPress(webapp2.RequestHandler):
   def post(self):
     wp = WordPress.new(self)
     wp.save()
-    self.redirect('/?dest=%s' % str(wp.key()))
+    self.redirect('/?dest=%s#sources' % str(wp.key()))
 
 
 class DeleteWordPress(webapp2.RequestHandler):

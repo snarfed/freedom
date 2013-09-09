@@ -223,7 +223,7 @@ class AddTumblr(webapp2.RequestHandler):
 
     # redirect so that refreshing the page doesn't try to regenerate the oauth
     # token, which won't work.
-    self.redirect('/?dest=%s' % str(tumblr.key()))
+    self.redirect('/?dest=%s#sources' % str(tumblr.key()))
 
 
 class DeleteTumblr(webapp2.RequestHandler):
