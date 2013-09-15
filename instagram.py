@@ -1,5 +1,7 @@
 #!/usr/bin/python
-"""Facebook source class.
+"""Instagram source class.
+
+TODO: handle access token expired errors
 """
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
@@ -9,10 +11,13 @@ import json
 import logging
 import urllib
 import urlparse
+from webob import exc
 
-from activitystreams import facebook as as_facebook
+from activitystreams import instagram as as_instagram
 import appengine_config
 import models
+from python_instagram.bind import InstagramAPIError
+from python_instagram.client import InstagramAPI
 
 from webutil import util
 from webutil import webapp2
@@ -21,73 +26,58 @@ from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
 
-API_BASE = ('http://localhost:8001'
-            if appengine_config.MOCKFACEBOOK else
-            'https://www.facebook.com')
 
-# facebook api url templates. can't (easily) use urllib.urlencode() because i
+# instagram api url templates. can't (easily) use urllib.urlencode() because i
 # want to keep the %(...)s placeholders as is and fill them in later in code.
-# TODO: use appengine_config.py for local mockfacebook vs prod facebook
 GET_AUTH_CODE_URL = str('&'.join((
-    API_BASE + '/dialog/oauth?',
-    'scope=read_stream,offline_access',
+    'https://api.instagram.com/oauth/authorize?',
     'client_id=%(client_id)s',
     # redirect_uri here must be the same in the access token request!
-    'redirect_uri=%(host_url)s/facebook/got_auth_code',
+    'redirect_uri=%(host_url)s/instagram/oauth_callback',
     'response_type=code',
     'state=%(state)s',
     )))
 
-GET_ACCESS_TOKEN_URL = str('&'.join((
-    API_BASE + '/oauth/access_token?'
-    'client_id=%(client_id)s',
-    # redirect_uri here must be the same in the oauth request!
-    # (the value here doesn't actually matter since it's requested server side.)
-    'redirect_uri=%(host_url)s/facebook/got_auth_code',
-    'client_secret=%(client_secret)s',
-    'code=%(auth_code)s',
-    )))
-
-API_USER_URL = API_BASE + '/%(id)s?access_token=%(access_token)s'
-API_POSTS_URL = API_BASE + '/%(id)s/posts?access_token=%(access_token)s'
+GET_ACCESS_TOKEN_URL = 'https://api.instagram.com/oauth/access_token'
 
 
-class Facebook(models.Source):
-  """Implements the Facebook source.
+class Instagram(models.Source):
+  """Implements the Instagram source.
 
-  The key name is the user's or page's Facebook ID.
+  The key name is the user's Instagram ID.
   """
 
-  DOMAIN = 'facebook.com'
+  DOMAIN = 'instagram.com'
 
   # full human-readable name
   name = db.StringProperty()
+  username = db.StringProperty()
 
   # the token should be generated with the offline_access scope so that it
-  # doesn't expire. details: http://developers.facebook.com/docs/authentication/
+  # doesn't expire. details: http://developers.instagram.com/docs/authentication/
   access_token = db.StringProperty()
 
   def display_name(self):
     return self.name
 
-  @staticmethod
-  def new(handler, access_token=None):
-    """Creates and returns a Facebook instance for the logged in user.
+  @classmethod
+  def new(cls, handler, resp):
+    """Creates and returns a Instagram instance for the logged in user.
 
     Args:
-      handler: the current webapp2.RequestHandler
+      resp: JSON dict response from the Instagram /oauth/access_token request
     """
-    assert access_token
-    resp = util.urlfetch(API_USER_URL % {'id': 'me', 'access_token': access_token})
-    me = json.loads(resp)
+    assert resp['access_token']
+    user = resp['user']
+    username = user.get('username')
 
-    id = me['id']
-    return Facebook.get_or_insert(
-      id,
-      access_token=access_token,
-      name=me.get('name'),
-      picture='https://graph.facebook.com/%s/picture?type=small' % id,
-      url='http://facebook.com/%s' % id)
+    return Instagram.get_or_insert(
+      user['id'],
+      access_token=resp['access_token'],
+      name=user.get('full_name'),
+      username=username,
+      picture=user.get('profile_picture'),
+      url=user.get('website', 'http://%s/%s' % (cls.DOMAIN, username)))
 
   def get_posts(self, migration, scan_url=None):
     """Fetches a page of posts.
@@ -98,7 +88,7 @@ class Facebook(models.Source):
         starts at the beginning.
 
     Returns:
-      (posts, next_scan_url). posts is a sequence of FacebookPosts.
+      (posts, next_scan_url). posts is a sequence of InstagramPosts.
       next_scan_url is a string, the API URL to use for the next scan, or None
       if there is nothing more to scan.
     """
@@ -130,40 +120,40 @@ class Facebook(models.Source):
         logging.info('Skipping post %s', post.get('id'))
         continue
 
-      posts.append(FacebookPost(key_name_parts=(post['id'], migration.key().name()),
+      posts.append(InstagramPost(key_name_parts=(post['id'], migration.key().name()),
                                 json_data=json.dumps(post)))
 
     next_scan_url = resp.get('paging', {}).get('next')
     # XXX remove
-    if posts and posts[-1].data()['created_time'] < '2013-09-01':
+    if posts and posts[-1].data()['created_time'] < '2013-01-01':
       next_scan_url = None
     # XXX
     return posts, next_scan_url
 
 
-class FacebookPost(models.Migratable):
-  """A Facebook post.
+class InstagramMedia(models.Migratable):
+  """An Instagram photo or video.
 
-  The key name is 'POST_ID MIGRATION_KEY_NAME'.
+  The key name is 'MEDIA_ID MIGRATION_KEY_NAME'.
   """
 
-  TYPE = 'post'
+  TYPE = 'media'
 
   def to_activity(self):
-    """Returns an ActivityStreams activity dict for this post."""
-    return as_facebook.Facebook(None).post_to_activity(self.data())
+    """Returns an ActivityStreams activity dict for this media."""
+    return as_instagram.Instagram(None).media_to_activity(self.data())
 
   def get_comments(self):
-    """Returns an iterable of FacebookComments for this post's comments."""
+    """Returns an iterable of InstagramComments for this media's comments."""
     comments = self.data().get('comments', {}).get('data', [])
-    migration_key = FacebookPost.migration.get_value_for_datastore(self)
-    return (FacebookComment(key_name_parts=(cmt['id'], migration_key.name()),
+    migration_key = InstagramMedia.migration.get_value_for_datastore(self)
+    return (InstagramComment(key_name_parts=(cmt['id'], migration_key.name()),
                             json_data=json.dumps(cmt))
             for cmt in comments)
 
 
-class FacebookComment(models.Migratable):
-  """A Facebook comment.
+class InstagramComment(models.Migratable):
+  """A Instagram comment.
 
   The key name is 'COMMENT_ID MIGRATION_KEY_NAME'.
   """
@@ -172,28 +162,25 @@ class FacebookComment(models.Migratable):
 
   def to_activity(self):
     """Returns an ActivityStreams activity dict for this comment."""
-    obj = as_facebook.Facebook(None).comment_to_object(self.data())
+    obj = as_instagram.Instagram(None).comment_to_object(self.data())
     return {'object': obj}
 
 
-class AddFacebook(webapp2.RequestHandler):
+class AddInstagram(webapp2.RequestHandler):
   def post(self):
     """Gets an access token for the current user.
 
-    Actually just gets the auth code and redirects to /facebook/got_auth_code,
+    Actually just gets the auth code and redirects to /instagram/got_auth_code,
     which makes the next request to get the access token.
     """
-    # redirect_uri = '/'
     dest = self.request.get('dest')
     assert dest
 
+    # http://instagram.com/developer/authentication/
     url = GET_AUTH_CODE_URL % {
-      'client_id': appengine_config.FACEBOOK_APP_ID,
+      'client_id': appengine_config.INSTAGRAM_CLIENT_ID,
       # TODO: CSRF protection identifier.
-      # http://developers.facebook.com/docs/authentication/
       'host_url': self.request.host_url,
-      # 'state': self.request.host_url + redirect_uri,
-      # 'state': urllib.quote(json.dumps({'redirect_uri': redirect_uri})),
       'state': dest,
       }
     self.redirect(str(url))
@@ -202,31 +189,49 @@ class AddFacebook(webapp2.RequestHandler):
 class GotAuthCode(webapp2.RequestHandler):
   def get(self):
     """Gets an access token based on an auth code."""
+    if self.request.get('error'):
+      params = [urllib.decode(self.request.get(k))
+                for k in ('error', 'error_reason', 'error_description')]
+      raise exc.HttpBadRequest('\n'.join(params))
+
     auth_code = self.request.get('code')
     assert auth_code
 
+    # http://instagram.com/developer/authentication/
     # TODO: handle permission declines, errors, etc
-    url = GET_ACCESS_TOKEN_URL % {
-      'auth_code': auth_code,
-      'client_id': appengine_config.FACEBOOK_APP_ID,
-      'client_secret': appengine_config.FACEBOOK_APP_SECRET,
-      'host_url': self.request.host_url,
-      }
-    resp = urlfetch.fetch(url, deadline=999)
-    # TODO: error handling. handle permission declines, errors, etc
-    logging.debug('access token response: %s' % resp.content)
-    params = urlparse.parse_qs(resp.content)
+    data = urllib.urlencode({
+      'client_id': appengine_config.INSTAGRAM_CLIENT_ID,
+      'client_secret': appengine_config.INSTAGRAM_CLIENT_SECRET,
+      'code': auth_code,
+      'redirect_uri': self.request.host_url + '/instagram/oauth_callback',
+      'grant_type': 'authorization_code',
+      })
 
-    fb = Facebook.new(self, access_token=params['access_token'][0])
+    resp = urlfetch.fetch(GET_ACCESS_TOKEN_URL, method='POST', payload=data,
+                          deadline=999)
+    try:
+      resp = json.loads(resp.content)
+    except ValueError, TypeError:
+      logging.error('Bad response:\n%s' % resp.content)
+      raise
+
+    if 'error_type' in resp:
+      error_class = exc.status_map[resp.get('code', 500)]
+      raise error_class(resp.get('error_message'))
+
+    # TODO: error handling. handle permission declines, errors, etc
+    logging.debug('access token response: %s' % resp)
+
+    inst = Instagram.new(self, resp)
 
     # redirect so that refreshing the page doesn't try to get a new access token
-    # and rewrite the Facebook entity.
+    # and rewrite the Instagram entity.
     self.redirect('/?%s#options' % urllib.urlencode(
         {'dest': self.request.get('state'),
-         'source': urllib.quote(str(fb.key()))}))
+         'source': urllib.quote(str(inst.key()))}))
 
 
 application = webapp2.WSGIApplication([
-    ('/facebook/source/add', AddFacebook),
-    ('/facebook/got_auth_code', GotAuthCode),
+    ('/instagram/source/add', AddInstagram),
+    ('/instagram/oauth_callback', GotAuthCode),
     ], debug=appengine_config.DEBUG)

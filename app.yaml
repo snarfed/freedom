@@ -38,6 +38,10 @@ handlers:
   script: facebook.application
   secure: optional
 
+- url: /instagram/.*
+  script: instagram.application
+  secure: optional
+
 - url: /googleplus/.*
   script: googleplus.application
   secure: optional

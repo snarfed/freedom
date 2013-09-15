@@ -4,14 +4,14 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-  <title>Asheville / Freedom</title>
+  <title>Freedom</title>
   <link href="/static/style.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
 
 <div id="header">
-  <span style="font-size: 3em">&nbsp; asheville.io / freedom.io</span>
+  <span style="font-size: 3em">&nbsp; freedom.io</span>
   <p id="title"><span><br/><br/><br/></span></p>
   <p>Social networks keep your memories locked up. Take them back and set them free! Copy your posts, pictures, and other content to a blog of your choice.</p>
 </div>
@@ -104,6 +104,10 @@
 <form method="get" action="/googleplus/source/add">
   <input type="hidden" name="dest" value="{{ dest }}" />
   <input type="image" alt="Sign in with Google+" src="/static/google_plus_button.png" />
+</form>
+<form method="post" action="/instagram/source/add">
+  <input type="hidden" name="dest" value="{{ dest }}" />
+  <input type="image" alt="Sign in with Instagram" src="/static/instagram_button.png" />
 </form>
 </div>
 

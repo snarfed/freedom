@@ -106,7 +106,7 @@ class Twitter(models.Source):
     if tweets:
       scan_url + '&max_id=%s' % tweets[-1].id()
     # XXX remove
-    if tweets and tw.rfc2822_to_iso8601(tweets[-1].data()['created_at']) < '2013--01-01':
+    if tweets and tw.rfc2822_to_iso8601(tweets[-1].data()['created_at']) < '2013-09-01':
       next_scan_url = None
     # XXX
     return tweets, next_scan_url
