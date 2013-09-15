@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """Instagram source class.
 
-TODO: handle access token expired errors
+TODO: handle expired access tokens
 """
 
 __author__ = ['Ryan Barrett <freedom@ryanb.org>']
@@ -49,12 +49,8 @@ class Instagram(models.Source):
 
   DOMAIN = 'instagram.com'
 
-  # full human-readable name
-  name = db.StringProperty()
+  name = db.StringProperty()  # full human-readable name
   username = db.StringProperty()
-
-  # the token should be generated with the offline_access scope so that it
-  # doesn't expire. details: http://developers.instagram.com/docs/authentication/
   access_token = db.StringProperty()
 
   def display_name(self):
@@ -88,67 +84,45 @@ class Instagram(models.Source):
         starts at the beginning.
 
     Returns:
-      (posts, next_scan_url). posts is a sequence of InstagramPosts.
-      next_scan_url is a string, the API URL to use for the next scan, or None
+      (posts, next_url). posts is a sequence of InstagramPosts.
+      next_url is a string, the API URL to use for the next scan, or None
       if there is nothing more to scan.
     """
-    # TODO: expose these as options
-    # Publish these post types.
-    POST_TYPES = ('link', 'checkin', 'video')  # , 'photo', 'status', ...
+    api = InstagramAPI(client_id=appengine_config.INSTAGRAM_CLIENT_ID,
+                       client_secret=appengine_config.INSTAGRAM_CLIENT_SECRET,
+                       access_token=self.access_token)
 
-    # Publish these status types.
-    STATUS_TYPES = ('shared_story', 'added_photos', 'mobile_status_update')
-      # 'wall_post', 'approved_friend', 'created_note', 'tagged_in_photo', ...
-
-    # Don't publish posts from these applications
-    APPLICATION_BLACKLIST = ('Likes', 'Links', 'twitterfeed')
-
-    if not scan_url:
-      scan_url = API_POSTS_URL % {'id': self.key().name(),
-                                  'access_token': self.access_token}
-    resp = json.loads(util.urlfetch(scan_url))
-
-    posts = []
-    for post in resp['data']:
-      app = post.get('application', {}).get('name')
-      if ((post.get('type') not in POST_TYPES and
-           post.get('status_type') not in STATUS_TYPES) or
-          (app and app in APPLICATION_BLACKLIST) or
-          # posts with 'story' aren't explicit posts. they're friend approvals or
-          # likes or photo tags or comments on other people's posts.
-          'story' in post):
-        logging.info('Skipping post %s', post.get('id'))
-        continue
-
-      posts.append(InstagramPost(key_name_parts=(post['id'], migration.key().name()),
-                                json_data=json.dumps(post)))
-
-    next_scan_url = resp.get('paging', {}).get('next')
-    # XXX remove
-    if posts and posts[-1].data()['created_time'] < '2013-01-01':
-      next_scan_url = None
-    # XXX
-    return posts, next_scan_url
+    user_id = self.key().name()
+    media, next_url = api.user_recent_media(user_id, with_next_url=scan_url)
+    converter = as_instagram.Instagram(None)
+    imedia = [InstagramMedia(key_name_parts=(m.id, migration.key().name()),
+                             json_data=json.dumps(converter.media_to_activity(m)))
+              for m in media]
+    return imedia, next_url
 
 
 class InstagramMedia(models.Migratable):
   """An Instagram photo or video.
 
   The key name is 'MEDIA_ID MIGRATION_KEY_NAME'.
+
+  The json_data properties in both this class and InstagramComment store
+  *ActivityStreams* formatted data, not Instagram' API format. That's because we
+  use the python-instagram library, which returns python objects, not JSON.
   """
 
-  TYPE = 'media'
+  TYPE = 'post'
 
   def to_activity(self):
     """Returns an ActivityStreams activity dict for this media."""
-    return as_instagram.Instagram(None).media_to_activity(self.data())
+    return self.data()
 
   def get_comments(self):
     """Returns an iterable of InstagramComments for this media's comments."""
-    comments = self.data().get('comments', {}).get('data', [])
+    comments = self.data().get('replies', {}).get('items', [])
     migration_key = InstagramMedia.migration.get_value_for_datastore(self)
     return (InstagramComment(key_name_parts=(cmt['id'], migration_key.name()),
-                            json_data=json.dumps(cmt))
+                             json_data=json.dumps(cmt))
             for cmt in comments)
 
 
@@ -162,8 +136,7 @@ class InstagramComment(models.Migratable):
 
   def to_activity(self):
     """Returns an ActivityStreams activity dict for this comment."""
-    obj = as_instagram.Instagram(None).comment_to_object(self.data())
-    return {'object': obj}
+    return {'object': self.data()}
 
 
 class AddInstagram(webapp2.RequestHandler):

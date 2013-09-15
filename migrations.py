@@ -19,6 +19,7 @@ import blogger
 import dropbox
 import facebook
 import googleplus
+import instagram
 import tumblr
 import twitter
 import wordpress_xmlrpc
@@ -90,6 +91,7 @@ class MigrationHandler(handlers.TemplateHandler):
   MIGRATABLES = {
     'Facebook': (facebook.FacebookPost, facebook.FacebookComment),
     'GooglePlus': (googleplus.GooglePlusPost, googleplus.GooglePlusComment),
+    'Instagram': (instagram.InstagramMedia, instagram.InstagramComment),
     'Twitter': (twitter.Tweet, twitter.Reply),
     }
 

@@ -46,6 +46,7 @@ TODO
   - facebook
   - twitter
   - g+
+- switch to using paging and API requests in activitystreams-unofficial
 - make tasks transactional where necessary
 - port to ndb?
 - migration options

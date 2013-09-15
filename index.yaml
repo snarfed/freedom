@@ -38,6 +38,20 @@ indexes:
   - name: last_updated
     direction: desc
 
+- kind: InstagramComment
+  properties:
+  - name: migration
+  - name: status
+  - name: last_updated
+    direction: desc
+
+- kind: InstagramMedia
+  properties:
+  - name: migration
+  - name: status
+  - name: last_updated
+    direction: desc
+
 - kind: Reply
   properties:
   - name: migration

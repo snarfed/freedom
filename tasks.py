@@ -14,6 +14,7 @@ from webob import exc
 # need to import model class definitions since scan creates and saves entities.
 import facebook
 import googleplus
+import instagram
 import migrations
 import models
 import twitter
@@ -134,7 +135,7 @@ class Propagate(webapp2.RequestHandler):
           entity.dest_id = dest.publish_comment(entity)
           entity.save()
         else:
-          logging.error('Skipping unknown type %S', entity.TYPE)
+          logging.error('Skipping unknown type %s', entity.TYPE)
         self.complete()
     except Exception, e:
       logging.exception('Propagate task failed')
