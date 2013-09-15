@@ -10,6 +10,10 @@ facebook_app_id_local
 facebook_app_secret_local
 google_client_id
 google_client_secret
+instagram_client_id
+instagram_client_secret
+instagram_client_id_local
+instagram_client_secret_local
 tumblr_app_key
 tumblr_app_secret
 twitter_app_key
