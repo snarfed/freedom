@@ -202,8 +202,10 @@ class ConnectBlogger(webapp2.RequestHandler):
     for entry in blogs.entry:
       for link in entry.link:
         if link.type == 'text/html':
-          hostnames.append(util.domain_from_link(link.href))
-          break
+          domain = util.domain_from_link(link.href)
+          if domain:
+            hostnames.append(domain)
+            break
 
     # redirect so that refreshing the page doesn't try to regenerate the oauth
     # token, which won't work.

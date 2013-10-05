@@ -199,6 +199,7 @@ class OAuthCallback(webapp2.RequestHandler):
     logging.debug(resp)
     user = resp['user']
     hostnames = [util.domain_from_link(b['url']) for b in user['blogs']]
+    hostnames = util.trim_nulls(hostnames)
     # titles = [b[title] for b in user['blogs']]
 
     # redirect so that refreshing the page doesn't try to regenerate the oauth
