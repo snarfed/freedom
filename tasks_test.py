@@ -15,9 +15,9 @@ from models import Source
 import tasks
 from tasks import Scan, Propagate
 from webutil import testutil
-from webutil import webapp2
 
 from google.appengine.ext import db
+import webapp2
 
 
 class TaskQueueTest(testutil.HandlerTest):

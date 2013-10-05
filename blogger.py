@@ -28,13 +28,13 @@ from activitystreams import activitystreams
 import appengine_config
 import models
 from webutil import util
-from webutil import webapp2
 
 from oauth2client.appengine import OAuth2Decorator
 from gdata.blogger import client
 from gdata import gauth
 from google.appengine.api import users
 from google.appengine.ext import db
+import webapp2
 
 
 oauth = OAuth2Decorator(

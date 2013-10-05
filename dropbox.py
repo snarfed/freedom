@@ -19,11 +19,11 @@ from python_dropbox.client import DropboxOAuth2Flow, DropboxClient
 import models
 from webob import exc
 from webutil import util
-from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
+import webapp2
 
 
 TITLE_MAX_LEN = 40

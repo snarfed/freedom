@@ -19,11 +19,11 @@ import models
 import tumblpy
 from webob import exc
 from webutil import util
-from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
+import webapp2
 
 
 # http://www.tumblr.com/oauth/apps

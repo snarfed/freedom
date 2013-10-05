@@ -12,10 +12,10 @@ import urlparse
 from activitystreams import activitystreams
 import appengine_config
 from webutil import util
-from webutil import webapp2
 
 from google.appengine.api import taskqueue
 from google.appengine.ext import db
+import webapp2
 
 
 class Base(util.KeyNameModel):

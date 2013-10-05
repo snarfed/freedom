@@ -11,8 +11,8 @@ import urlparse
 
 import appengine_config
 import facebook
+import webapp2
 from webutil import testutil
-from webutil import webapp2
 
 # test data
 LINK_AND_COMMENTS_JSON = {

@@ -17,10 +17,10 @@ from activitystreams import activitystreams
 import appengine_config
 import models
 from webutil import util
-from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
+import webapp2
 
 
 class WordPress(models.Destination):

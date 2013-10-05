@@ -6,8 +6,8 @@ __author__ = 'Ryan Barrett <freedom@ryanb.org>'
 import logging
 
 import appengine_config
+import webapp2
 from webutil import handlers
-from webutil import webapp2
 
 
 class FrontPage(handlers.TemplateHandler):

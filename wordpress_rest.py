@@ -21,10 +21,10 @@ import appengine_config
 import models
 from oauth2client.appengine import OAuth2Decorator
 from webutil import util
-from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
+import webapp2
 
 
 # https://developer.wordpress.com/docs/api/1/

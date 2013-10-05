@@ -11,7 +11,6 @@ from webob import exc
 import appengine_config
 import models
 from webutil import handlers
-from webutil import webapp2
 
 # Import all sources and destinations because their Model classes are
 # instantiated here.
@@ -26,6 +25,7 @@ import wordpress_xmlrpc
 
 from google.appengine.api import taskqueue
 from google.appengine.ext import db
+import webapp2
 
 
 class MigrateHandler(webapp2.RequestHandler):

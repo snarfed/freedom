@@ -16,11 +16,11 @@ import models
 import tweepy
 
 from webutil import util
-from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
+import webapp2
 
 
 OAUTH_CALLBACK = '%s://%s/twitter/oauth_callback?dest=%%s' % (appengine_config.SCHEME,

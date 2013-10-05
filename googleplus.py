@@ -15,7 +15,6 @@ import appengine_config
 import models
 
 from webutil import util
-from webutil import webapp2
 
 from apiclient import discovery
 from apiclient.errors import HttpError
@@ -25,6 +24,7 @@ from oauth2client.appengine import StorageByKeyName
 from google.appengine.api import users
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
+import webapp2
 
 
 # service names and versions:

@@ -20,11 +20,11 @@ from python_instagram.bind import InstagramAPIError
 from python_instagram.client import InstagramAPI
 
 from webutil import util
-from webutil import webapp2
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
+import webapp2
 
 
 # instagram api url templates. can't (easily) use urllib.urlencode() because i
