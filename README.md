@@ -33,6 +33,11 @@ Requirements:
 
 TODO
 ====
+- SSL? the cert itself costs ~$60/yr, and SSL on app engine costs $9/mo for SNI
+  or $39/mo for a VIP (supports old IE, Win XP, pre-Honeycomb Android):
+  https://developers.google.com/appengine/docs/pricing#cost_resource
+  https://developers.google.com/appengine/docs/ssl
+  http://www.pair.com/services/e-commerce/pairssl/
 - test: use mockfb to run a migration to local snarfed
 - migration page
   advice from @colbyh: use Bootstrap or Yui or maybe Zurb for UI, d3 for charts
