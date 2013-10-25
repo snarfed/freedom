@@ -38,6 +38,7 @@ TODO
   https://developers.google.com/appengine/docs/pricing#cost_resource
   https://developers.google.com/appengine/docs/ssl
   http://www.pair.com/services/e-commerce/pairssl/
+  https://www.volcanicpixels.com/ssl/
 - test: use mockfb to run a migration to local snarfed
 - migration page
   advice from @colbyh: use Bootstrap or Yui or maybe Zurb for UI, d3 for charts
