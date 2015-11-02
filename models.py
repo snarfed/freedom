@@ -11,6 +11,7 @@ import urlparse
 
 from activitystreams import activitystreams
 import appengine_config
+from webutil import models
 from webutil import util
 
 from google.appengine.api import taskqueue
@@ -18,7 +19,7 @@ from google.appengine.ext import db
 import webapp2
 
 
-class Base(util.KeyNameModel):
+class Base(models.KeyNameModel):
   """A model class with a few utilities.
 
   - Supports key name of multiple strings separated by spaces. The component

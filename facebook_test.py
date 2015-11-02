@@ -160,8 +160,8 @@ class FacebookTest(testutil.HandlerTest):
     self.assert_equals(expected_params, urlparse.parse_qs(parsed.query))
 
   def test_got_auth_code(self):
-    comparator = mox.Regex('.*/oauth/access_token\?.*&code=my_auth_code.*')
-    self.expect_urlfetch(comparator, 'foo=bar&access_token=my_access_token')
+    self.expect_urlfetch('.*/oauth/access_token\?.*&code=my_auth_code.*',
+                         'foo=bar&access_token=my_access_token')
 
     self.mox.ReplayAll()
     resp = facebook.application.get_response(
