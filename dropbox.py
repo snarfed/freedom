@@ -27,11 +27,9 @@ import webapp2
 
 
 TITLE_MAX_LEN = 40
-REAL_DOMAIN = 'www.freedom.io'
-APPSPOT_DOMAIN = 'freedom-io-app.appspot.com'
 DROPBOX_APP_KEY = appengine_config.read('dropbox_app_key')
 DROPBOX_APP_SECRET = appengine_config.read('dropbox_app_secret')
-OAUTH_CALLBACK = 'https://%s/dropbox/oauth_callback' % APPSPOT_DOMAIN
+OAUTH_CALLBACK = 'https://freedom-io-app.appspot.com/dropbox/oauth_callback'
 CSRF_PARAM = 'dropbox-auth-csrf-token'
 
 
@@ -132,14 +130,8 @@ class AddDropbox(webapp2.RequestHandler):
 class OAuthCallback(webapp2.RequestHandler):
   """OAuth callback. Fetches the user's blogs and re-renders the front page."""
 
+  @handlers.redirect(('freedom.io', 'www.freedom.io'), 'freedom-io-app.appspot.com')
   def get(self):
-    # Redirect from https://freedom-io-app.appspot.com/ to http://freedom.io/
-    # for now, since App Engine charges $40/mo for SSL on custom domains:
-    # https://developers.google.com/appengine/docs/billing#Billable_Resource_Unit_Costs
-    if self.request.host == APPSPOT_DOMAIN:
-      self.redirect('http://%s%s' % (REAL_DOMAIN, self.request.path_qs))
-      return
-
     # lookup the CSRF token
     csrf_id = self.request.get('state').split('|')[1]
     csrf = DropboxCsrf.get_by_id(int(csrf_id))

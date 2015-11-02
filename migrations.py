@@ -100,6 +100,7 @@ class MigrationHandler(handlers.TemplateHandler):
   Attributes:
     id: integer, migration id
   """
+  @handlers.redirect(('freedom.io', 'www.freedom.io'), 'freedom-io-app.appspot.com')
   def get(self, id):
     self.id = int(id)
     super(MigrationHandler, self).get()

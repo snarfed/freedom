@@ -103,7 +103,7 @@ class WordPressRest(models.Destination):
     """
     # TODO: expose as option
     # Attach these tags to the WordPress posts.
-    POST_TAGS = ['freedom.io']
+    POST_TAGS = ['Freedom']
 
     activity = post.to_activity()
     obj = activity['object']

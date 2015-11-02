@@ -9,7 +9,7 @@ STATUS_TYPES = ('shared_story', 'added_photos', 'mobile_status_update')
 APPLICATION_BLACKLIST = ('Likes', 'Links', 'twitterfeed')
 
 # Attach these tags to the WordPress posts.
-POST_TAGS = ['freedom.io']
+POST_TAGS = ['Freedom']
 
 # Uploaded photos are scaled to this width in pixels. They're also linked to
 # the full size image.
